@@ -60,6 +60,8 @@ class DashboardHeader extends StatelessWidget {
                   fontSize: 17,
                   letterSpacing: -0.5,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(
@@ -69,6 +71,8 @@ class DashboardHeader extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                   fontSize: 11.5,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -112,4 +116,4 @@ class DashboardHeader extends StatelessWidget {
     );
   }
 }
-
+

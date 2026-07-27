@@ -102,6 +102,51 @@ class MedicineCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          if (medicine.databaseMedicine != null) ...[
+            Row(
+              children: [
+                const Icon(
+                  Icons.home_repair_service_rounded,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    medicine.databaseMedicine!.brandName.isNotEmpty
+                        ? medicine.databaseMedicine!.brandName
+                        : medicine.databaseMedicine!.genericName,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                const Icon(
+                  Icons.category_rounded,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    medicine.databaseMedicine!.category.isNotEmpty
+                        ? medicine.databaseMedicine!.category
+                        : 'Medicine category not available',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           const Divider(color: Color(0xFF1E293B)),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -128,4 +173,4 @@ class MedicineCard extends StatelessWidget {
       ),
     );
   }
-}
+}

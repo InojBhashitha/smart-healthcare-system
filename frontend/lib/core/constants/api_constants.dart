@@ -1,8 +1,10 @@
 class ApiConstants {
   ApiConstants._();
 
-  /// Change this to your computer's IP address
-  static const String host = "192.168.8.159";
+  /// Change this to your computer's IP address.
+  ///
+  /// For Android emulators, use 10.0.2.2 if you run the backend from the host machine.
+  static const String host = "192.168.20.164";
 
   static const int port = 8080;
 

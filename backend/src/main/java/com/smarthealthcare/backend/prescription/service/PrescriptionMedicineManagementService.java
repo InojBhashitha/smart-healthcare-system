@@ -5,6 +5,8 @@ import com.smarthealthcare.backend.prescription.entity.PrescriptionMedicine;
 import com.smarthealthcare.backend.prescription.repository.PrescriptionMedicineRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 public class PrescriptionMedicineManagementService {
 
@@ -19,6 +21,8 @@ public class PrescriptionMedicineManagementService {
     public PrescriptionMedicineUpdateResponse verifyMedicine(
             Long id,
             Boolean verified) {
+
+        Objects.requireNonNull(id, "Medicine id must not be null");
 
         PrescriptionMedicine medicine =
                 repository.findById(id)
@@ -46,10 +50,12 @@ public class PrescriptionMedicineManagementService {
         String instruction,
         Boolean verified) {
 
-    PrescriptionMedicine medicine =
-            repository.findById(id)
-                    .orElseThrow(() ->
-                            new RuntimeException("Medicine not found"));
+        Objects.requireNonNull(id, "Medicine id must not be null");
+
+        PrescriptionMedicine medicine =
+                repository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException("Medicine not found"));
 
     medicine.setMedicineName(medicineName);
     medicine.setStrength(strength);

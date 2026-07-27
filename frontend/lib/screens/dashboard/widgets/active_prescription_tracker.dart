@@ -41,26 +41,32 @@ class ActivePrescriptionTracker extends StatelessWidget {
         children: [
           Row(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Latest Scan Status",
-                    style: AppTextStyles.title.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Latest Scan Status",
+                      style: AppTextStyles.title.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    "Prescription #3892 • General Hospital",
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 2),
+                    Text(
+                      "Prescription #3892 • General Hospital",
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: AppSpacing.sm),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -136,6 +142,8 @@ class ActivePrescriptionTracker extends StatelessWidget {
                                 ? AppColors.warning
                                 : Colors.white),
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

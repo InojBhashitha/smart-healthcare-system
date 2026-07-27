@@ -1,5 +1,6 @@
 package com.smarthealthcare.backend.prescription.service;
 
+import com.smarthealthcare.backend.auth.security.CustomUserDetails;
 import com.smarthealthcare.backend.medicine.dto.DrugInteractionResult;
 import com.smarthealthcare.backend.prescription.dto.DatabaseMedicineResponse;
 import com.smarthealthcare.backend.prescription.dto.PrescriptionDetailsResponse;
@@ -8,6 +9,8 @@ import com.smarthealthcare.backend.prescription.dto.PrescriptionSummaryResponse;
 import com.smarthealthcare.backend.prescription.entity.Prescription;
 import com.smarthealthcare.backend.prescription.entity.PrescriptionMedicine;
 import com.smarthealthcare.backend.prescription.repository.PrescriptionRepository;
+import com.smarthealthcare.backend.user.entity.User;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import com.smarthealthcare.backend.medicine.service.DrugInteractionService;
 
@@ -31,8 +34,15 @@ public class PrescriptionService {
     }
 
     public List<PrescriptionSummaryResponse> getAllPrescriptions() {
+        // Get current authenticated user
+        CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
 
-        return prescriptionRepository.findAll()
+        User user = userDetails.getUser();
+
+        return prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(user.getUserId())
                 .stream()
                 .map(prescription -> new PrescriptionSummaryResponse(
                         prescription.getPrescriptionId(),
@@ -50,11 +60,20 @@ public class PrescriptionService {
 
         Prescription prescription = new Prescription();
 
+        // Get current authenticated user
+        CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        User user = userDetails.getUser();
+
         prescription.setImagePath(imagePath);
         prescription.setExtractedText(extractedText);
         prescription.setMedicinesFound(medicinesFound);
         prescription.setStatus("OCR_COMPLETED");
         prescription.setUploadedAt(LocalDateTime.now());
+        prescription.setUser(user);
 
         return prescriptionRepository.save(prescription);
     }
@@ -89,7 +108,7 @@ public class PrescriptionService {
         List<String> medicineNames =
                 prescription.getMedicines()
                         .stream()
-                        .map(PrescriptionMedicine::getMedicineName)
+                        .map(medicine -> medicine.getMedicineName())
                         .toList();
 
         List<DrugInteractionResult> interactions =
