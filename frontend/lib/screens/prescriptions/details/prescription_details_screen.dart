@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../providers/prescription_provider.dart';
@@ -101,6 +102,63 @@ class PrescriptionDetailsScreen extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: AppSpacing.xl),
+            if (prescription.drugInteractions.isNotEmpty) ...[
+              Text(
+                "Detected Interactions",
+                style: AppTextStyles.title.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ...prescription.drugInteractions.map(
+                (interaction) => Container(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppRadius.large),
+                    border: Border.all(
+                      color: AppColors.danger.withValues(alpha: 0.12),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            color: AppColors.danger,
+                            size: 20,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              '${interaction.drug1} + ${interaction.drug2}',
+                              style: AppTextStyles.title.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        interaction.description,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
             Text(
               "Diagnostic Raw Text",
               style: AppTextStyles.title.copyWith(
@@ -118,4 +176,4 @@ class PrescriptionDetailsScreen extends StatelessWidget {
       ),
     );
   }
-}
+}

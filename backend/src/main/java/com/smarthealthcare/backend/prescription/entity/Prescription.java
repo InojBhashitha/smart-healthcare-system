@@ -1,5 +1,6 @@
 package com.smarthealthcare.backend.prescription.entity;
 
+import com.smarthealthcare.backend.user.entity.User;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -28,6 +29,10 @@ public class Prescription {
 
     @Column(nullable = false)
     private LocalDateTime uploadedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = true)
+    private User user;
 
     @OneToMany(
             mappedBy = "prescription",
@@ -93,5 +98,13 @@ public class Prescription {
 
     public void setMedicines(List<PrescriptionMedicine> medicines) {
         this.medicines = medicines;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

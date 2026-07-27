@@ -9,6 +9,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/buttons/custom_button.dart';
+import '../../screens/dashboard/widgets/recent_prescriptions_card.dart';
 import 'widgets/active_prescription_tracker.dart';
 import 'widgets/compliance_wave_painter.dart';
 import 'widgets/dashboard_header.dart';
@@ -310,12 +311,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const SizedBox(height: AppSpacing.md),
 
-                // 2x2 Overview Modules Grid
-                Column(
-                  children: [
-                    Row(
+                // Responsive Overview Modules Grid
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double moduleCardWidth =
+                        (constraints.maxWidth - AppSpacing.md) / 2;
+                    return Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.md,
                       children: [
-                        Expanded(
+                        SizedBox(
+                          width: moduleCardWidth,
                           child: OverviewModuleCard(
                             title: "OCR Scan",
                             subtitle: "Upload Prescription",
@@ -326,8 +332,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
+                        SizedBox(
+                          width: moduleCardWidth,
                           child: OverviewModuleCard(
                             title: "0",
                             subtitle: "Reservations",
@@ -338,12 +344,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      children: [
-                        Expanded(
+                        SizedBox(
+                          width: moduleCardWidth,
                           child: OverviewModuleCard(
                             title: "Medicines",
                             subtitle: "Intake Details",
@@ -352,8 +354,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             onTap: () {},
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
+                        SizedBox(
+                          width: moduleCardWidth,
                           child: OverviewModuleCard(
                             title: "Pharmacies",
                             subtitle: "Locate Stock Map",
@@ -365,8 +367,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
@@ -517,6 +519,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // Next Dose Card
                 const NextDoseCard(),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // Recent Prescriptions Card
+                const RecentPrescriptionsCard(),
 
                 const SizedBox(height: AppSpacing.lg),
 

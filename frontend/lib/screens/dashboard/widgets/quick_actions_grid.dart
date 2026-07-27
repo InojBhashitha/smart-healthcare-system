@@ -39,7 +39,12 @@ class QuickActionsGrid extends StatelessWidget {
           title: "Prescriptions",
           icon: Icons.description_rounded,
           color: const Color(0xFF10B981),
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              AppRoutes.prescriptionHistory,
+            );
+          },
         ),
 
         QuickActionCard(

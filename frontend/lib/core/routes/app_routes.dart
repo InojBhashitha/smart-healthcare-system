@@ -7,4 +7,5 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
   static const uploadPrescription = "/upload-prescription";
   static const prescriptionDetails = "/prescription-details";
+  static const prescriptionHistory = "/prescription-history";
 }
