@@ -8,6 +8,7 @@ import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/prescriptions/history/prescription_history_screen.dart';
 import '../../screens/prescriptions/upload/upload_screen.dart';
 import '../../screens/prescriptions/details/prescription_details_screen.dart';
+import '../../widgets/auth_guard.dart';
 
 class AppRouter {
   AppRouter._();
@@ -30,23 +31,31 @@ class AppRouter {
         );
 
       case AppRoutes.dashboard:
-  return MaterialPageRoute(
-    builder: (_) => const DashboardScreen(),
-  );
+        return MaterialPageRoute(
+          builder: (_) => const AuthGuard(
+            child: DashboardScreen(),
+          ),
+        );
 
       case AppRoutes.uploadPrescription:
         return MaterialPageRoute(
-          builder: (_) => const UploadScreen(),
+          builder: (_) => const AuthGuard(
+            child: UploadScreen(),
+          ),
         );
 
       case AppRoutes.prescriptionDetails:
         return MaterialPageRoute(
-          builder: (_) => const PrescriptionDetailsScreen(),
+          builder: (_) => const AuthGuard(
+            child: PrescriptionDetailsScreen(),
+          ),
         );
 
       case AppRoutes.prescriptionHistory:
         return MaterialPageRoute(
-          builder: (_) => const PrescriptionHistoryScreen(),
+          builder: (_) => const AuthGuard(
+            child: PrescriptionHistoryScreen(),
+          ),
         );
 
       default:
