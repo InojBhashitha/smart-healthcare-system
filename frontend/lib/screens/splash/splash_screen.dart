@@ -5,6 +5,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/gradient_background.dart';
+import '../../core/network/token_storage.dart';
 import '../../core/routes/app_routes.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -51,11 +52,16 @@ class _SplashScreenState extends State<SplashScreen>
 
     Future.delayed(
       const Duration(seconds: 3),
-      () {
+      () async {
         if (!mounted) return;
+
+        final isLoggedIn = await TokenStorage.hasToken();
+
+        if (!mounted) return;
+
         Navigator.pushReplacementNamed(
           context,
-          AppRoutes.login,
+          isLoggedIn ? AppRoutes.dashboard : AppRoutes.login,
         );
       },
     );

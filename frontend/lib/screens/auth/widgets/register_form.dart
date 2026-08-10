@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../widgets/buttons/custom_button.dart';
 import '../../../widgets/inputs/custom_text_field.dart';
@@ -70,7 +71,10 @@ class _RegisterFormState extends State<RegisterForm> {
       ),
     );
 
-    Navigator.pop(context);
+    Navigator.pushReplacementNamed(
+      context,
+      AppRoutes.dashboard,
+    );
   } catch (e) {
     if (!mounted) return;
 
