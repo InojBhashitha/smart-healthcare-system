@@ -14,6 +14,8 @@ class ApiConstants {
 
   static const String register = "/api/auth/register";
 
+  static const String profile = "/api/auth/profile";
+
   static const String uploadPrescription =
     "/api/prescriptions/upload";
 
