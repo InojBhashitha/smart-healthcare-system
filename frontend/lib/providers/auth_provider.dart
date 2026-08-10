@@ -19,54 +19,67 @@ class AuthProvider extends ChangeNotifier {
   AuthResponse? get authResponse => _authResponse;
 
   String? _userName;
+  String? _userEmail;
 
   String? get userName => _userName;
+  String? get userEmail => _userEmail;
 
   AuthProvider() {
     loadUserData();
   }
 
   Future<void> loadUserData() async {
-    _userName = await TokenStorage.getUserName();
+    final token = await TokenStorage.getToken();
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final profile = await _authService.getProfile();
+        _userName = profile.name;
+        _userEmail = profile.email;
+        await TokenStorage.saveUserName(_userName!);
+        await TokenStorage.saveUserEmail(_userEmail!);
+      } catch (_) {
+        await logout();
+      }
+    } else {
+      _userName = await TokenStorage.getUserName();
+      _userEmail = await TokenStorage.getUserEmail();
+    }
+
     notifyListeners();
   }
 
 
 
   Future<void> login({
-  required String email,
-  required String password,
-}) async {
-  _isLoading = true;
-  notifyListeners();
-
-  try {
-    _authResponse = await _authService.login(
-      LoginRequest(
-        email: email,
-        password: password,
-      ),
-    );
-
-    // Save JWT
-    await TokenStorage.saveToken(
-      _authResponse!.token,
-    );
-    _userName = _authResponse!.name;
-    await TokenStorage.saveUserName(_userName!);
-
-    debugPrint("JWT Saved:");
-    debugPrint(_authResponse!.token);
-
-    final token = await TokenStorage.getToken();
-
-    debugPrint("Stored Token:");
-    debugPrint(token);
-  } finally {
-    _isLoading = false;
+    required String email,
+    required String password,
+  }) async {
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      _authResponse = await _authService.login(
+        LoginRequest(
+          email: email,
+          password: password,
+        ),
+      );
+
+      await TokenStorage.saveToken(
+        _authResponse!.token,
+      );
+      _userName = _authResponse!.name;
+      _userEmail = _authResponse!.email;
+      await TokenStorage.saveUserName(_userName!);
+      await TokenStorage.saveUserEmail(_userEmail!);
+
+      debugPrint("JWT Saved: ${_authResponse!.token}");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
-}
 
   Future<void> register({
     required String name,
@@ -90,7 +103,9 @@ class AuthProvider extends ChangeNotifier {
         _authResponse!.token,
       );
       _userName = _authResponse!.name;
+      _userEmail = _authResponse!.email;
       await TokenStorage.saveUserName(_userName!);
+      await TokenStorage.saveUserEmail(_userEmail!);
 
     } finally {
       _isLoading = false;
@@ -101,7 +116,9 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await TokenStorage.deleteToken();
     await TokenStorage.deleteUserName();
+    await TokenStorage.deleteUserEmail();
     _userName = null;
+    _userEmail = null;
     _authResponse = null;
 
     notifyListeners();

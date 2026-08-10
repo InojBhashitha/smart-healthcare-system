@@ -72,9 +72,10 @@ public DaoAuthenticationProvider authenticationProvider() {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
-        "/api/auth/**",
-        "/api/ocr/**"
-)
+                                "/api/auth/login",
+                                "/api/auth/register",
+                                "/api/ocr/**"
+                        )
                         .permitAll()
 
                         .anyRequest()

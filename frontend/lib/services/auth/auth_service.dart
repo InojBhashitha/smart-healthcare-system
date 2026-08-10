@@ -5,6 +5,7 @@ import '../../core/network/dio_client.dart';
 import '../../models/auth/auth_response.dart';
 import '../../models/auth/login_request.dart';
 import '../../models/auth/register_request.dart';
+import '../../models/auth/auth_profile.dart';
 
 class AuthService {
   final Dio _dio = DioClient.dio;
@@ -35,6 +36,20 @@ class AuthService {
     } on DioException catch (e) {
       throw Exception(
         e.response?.data["message"] ?? "Registration failed",
+      );
+    }
+  }
+
+  Future<AuthProfile> getProfile() async {
+    try {
+      final response = await _dio.get(
+        ApiConstants.profile,
+      );
+
+      return AuthProfile.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data["message"] ?? "Failed to fetch profile",
       );
     }
   }

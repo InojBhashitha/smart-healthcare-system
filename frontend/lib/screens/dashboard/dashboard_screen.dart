@@ -30,7 +30,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final String displayName = authProvider.userName ?? "Adheesha Sooriyaarachchi";
-    final String email = "${displayName.toLowerCase().replaceAll(" ", "")}@gmail.com";
+    final String email = authProvider.userEmail ??
+        "${displayName.toLowerCase().replaceAll(" ", "")}@gmail.com";
 
     // Select view body depending on current active index
     Widget bodyView;
