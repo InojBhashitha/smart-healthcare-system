@@ -5,6 +5,7 @@ import com.smarthealthcare.backend.prescription.entity.PrescriptionMedicine;
 import com.smarthealthcare.backend.prescription.repository.PrescriptionMedicineRepository;
 import org.springframework.stereotype.Service;
 
+import com.smarthealthcare.backend.exception.ResourceNotFoundException;
 import java.util.Objects;
 
 @Service
@@ -27,7 +28,7 @@ public class PrescriptionMedicineManagementService {
         PrescriptionMedicine medicine =
                 repository.findById(id)
                         .orElseThrow(() ->
-                                new RuntimeException("Medicine not found"));
+                                new ResourceNotFoundException("Medicine not found"));
 
         medicine.setVerified(verified);
 
@@ -55,7 +56,7 @@ public class PrescriptionMedicineManagementService {
         PrescriptionMedicine medicine =
                 repository.findById(id)
                         .orElseThrow(() ->
-                                new RuntimeException("Medicine not found"));
+                                new ResourceNotFoundException("Medicine not found"));
 
     medicine.setMedicineName(medicineName);
     medicine.setStrength(strength);

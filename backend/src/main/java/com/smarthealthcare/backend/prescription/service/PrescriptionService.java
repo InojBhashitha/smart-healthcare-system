@@ -84,7 +84,7 @@ public class PrescriptionService {
                 prescriptionRepository
                         .findWithMedicinesByPrescriptionId(id)
                         .orElseThrow(() ->
-                                new RuntimeException("Prescription not found"));
+                                new com.smarthealthcare.backend.exception.ResourceNotFoundException("Prescription not found"));
 
         PrescriptionDetailsResponse response =
                 new PrescriptionDetailsResponse();

@@ -1,5 +1,6 @@
 package com.smarthealthcare.backend.prescription.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -10,6 +11,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class FileStorageService {
 
@@ -38,13 +40,8 @@ public class FileStorageService {
                 StandardCopyOption.REPLACE_EXISTING
         );
 
-        // Debug information
-        System.out.println("========== FILE SAVED ==========");
-        System.out.println("Filename      : " + filename);
-        System.out.println("Absolute Path : " + filePath.toAbsolutePath());
-        System.out.println("Exists        : " + Files.exists(filePath));
-        System.out.println("Size (bytes)  : " + Files.size(filePath));
-        System.out.println("===============================");
+        log.info("File saved — Name: {}, Path: {}, Size: {} bytes",
+                filename, filePath.toAbsolutePath(), Files.size(filePath));
 
         return filePath;
     }

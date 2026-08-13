@@ -72,7 +72,7 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtService.generateToken(request.getEmail());
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new com.smarthealthcare.backend.exception.ResourceNotFoundException("User not found"));
 
         return new AuthResponse(
                 token,

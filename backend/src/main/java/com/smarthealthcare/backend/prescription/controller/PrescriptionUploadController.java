@@ -8,6 +8,7 @@ import com.smarthealthcare.backend.ocr.service.OcrService;
 import com.smarthealthcare.backend.prescription.service.FileStorageService;
 import com.smarthealthcare.backend.prescription.service.PrescriptionMedicineService;
 import com.smarthealthcare.backend.prescription.service.PrescriptionService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.nio.file.Path;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/prescriptions")
 public class PrescriptionUploadController {
@@ -48,10 +50,9 @@ public class PrescriptionUploadController {
             // Save uploaded image
             Path savedFile = fileStorageService.saveFile(file);
 
-String filename = savedFile.getFileName().toString();
+            String filename = savedFile.getFileName().toString();
 
-String text = ocrService.extractText(savedFile.toFile());
-
+            String text = ocrService.extractText(savedFile.toFile());
 
             // Extract medicines
             List<MedicineInfo> medicines = medicineParser.parse(text);
@@ -70,19 +71,15 @@ String text = ocrService.extractText(savedFile.toFile());
                     medicines
             );
 
-            System.out.println("========== OCR TEXT ==========");
-            System.out.println(text);
-
-            System.out.println("====== MEDICINES FOUND ======");
+            log.info("Prescription uploaded — ID: {}, Medicines found: {}",
+                    prescription.getPrescriptionId(), medicines.size());
+            log.debug("OCR extracted text: {}", text);
 
             for (MedicineInfo medicine : medicines) {
-                System.out.println(
-                        medicine.getName()
-                                + " "
-                                + medicine.getStrength()
-                                + " -> "
-                                + medicine.getInstruction()
-                );
+                log.debug("Parsed medicine: {} {} -> {}",
+                        medicine.getName(),
+                        medicine.getStrength(),
+                        medicine.getInstruction());
             }
 
             UploadPrescriptionResponse response =
@@ -97,7 +94,7 @@ String text = ocrService.extractText(savedFile.toFile());
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            log.error("Prescription upload failed", e);
 
             return ResponseEntity.internalServerError().body(
                     new UploadPrescriptionResponse(
