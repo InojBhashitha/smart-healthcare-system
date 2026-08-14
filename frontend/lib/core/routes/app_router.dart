@@ -6,6 +6,7 @@ import '../../screens/splash/splash_screen.dart';
 import 'app_routes.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/prescriptions/history/prescription_history_screen.dart';
+import '../../screens/profile/patient_profile_screen.dart';
 import '../../screens/prescriptions/upload/upload_screen.dart';
 import '../../screens/prescriptions/details/prescription_details_screen.dart';
 import '../../screens/prescriptions/verification/verification_screen.dart';
@@ -35,6 +36,13 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const AuthGuard(
             child: DashboardScreen(),
+          ),
+        );
+
+      case AppRoutes.patientProfile:
+        return MaterialPageRoute(
+          builder: (_) => const AuthGuard(
+            child: PatientProfileScreen(),
           ),
         );
 
