@@ -8,13 +8,16 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/patient_profile_provider.dart';
+import '../../providers/prescription_provider.dart';
+import '../../providers/treatment_plan_provider.dart';
 import '../../widgets/buttons/custom_button.dart';
 import '../../screens/dashboard/widgets/recent_prescriptions_card.dart';
 import 'widgets/active_prescription_tracker.dart';
-import 'widgets/compliance_wave_painter.dart';
 import 'widgets/dashboard_header.dart';
 import 'widgets/next_dose_card.dart';
 import 'widgets/overview_module_card.dart';
+import 'widgets/weekly_analytics_chart.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,9 +30,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDashboardData();
+    });
+  }
+
+  Future<void> _loadDashboardData() async {
+    await Future.wait([
+      context.read<PrescriptionProvider>().loadPrescriptionHistory(),
+      context.read<TreatmentPlanProvider>().loadTodayDoses(),
+      context.read<TreatmentPlanProvider>().loadAnalytics(),
+      context.read<PatientProfileProvider>().loadProfile(),
+    ]);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final String displayName = authProvider.userName ?? "Adheesha Sooriyaarachchi";
+    final String displayName = authProvider.userName ?? "User";
     final String email = authProvider.userEmail ??
         "${displayName.toLowerCase().replaceAll(" ", "")}@gmail.com";
 
@@ -55,11 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            await Future.delayed(
-              const Duration(seconds: 1),
-            );
-          },
+          onRefresh: _loadDashboardData,
           child: bodyView,
         ),
       ),
@@ -374,111 +390,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const SizedBox(height: AppSpacing.xl),
 
-                // Section Label: VITALS ADHERENCE RATE
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "VITALS ADHERENCE RATE",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDisabled,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: AppColors.success,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          "+12% THIS WEEK",
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.md),
-
-                // Compliance Wave Chart Card
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.card.withValues(alpha: 0.75),
-                    borderRadius: BorderRadius.circular(AppRadius.large),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "94%",
-                                style: AppTextStyles.headline.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 24,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Average Compliance",
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              "Optimal",
-                              style: TextStyle(
-                                color: AppColors.success,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      // Drawing the custom smooth compliance curve
-                      const SizedBox(
-                        width: double.infinity,
-                        height: 80,
-                        child: CustomPaint(
-                          painter: ComplianceWavePainter(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Weekly Adherence Analytics Chart with Real Data
+                const WeeklyAnalyticsChart(),
 
                 const SizedBox(height: AppSpacing.xl),
 
