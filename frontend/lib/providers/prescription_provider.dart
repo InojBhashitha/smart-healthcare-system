@@ -139,8 +139,8 @@ class PrescriptionProvider extends ChangeNotifier {
       verified: true,
     );
 
-    if (_prescriptionDetails?.id != null) {
-      await loadPrescription(_prescriptionDetails!.id);
+    if (_prescriptionDetails?.prescriptionId != null) {
+      await loadPrescription(_prescriptionDetails!.prescriptionId);
     }
   }
 

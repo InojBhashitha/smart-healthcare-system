@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../models/cdss/cdss_safety_response.dart';
-import '../../../models/prescription/prescription_medicine_details.dart';
+import '../../../models/prescription/prescription_medicine.dart';
 import '../../../providers/prescription_provider.dart';
 
 class VerificationScreen extends StatefulWidget {
@@ -98,7 +98,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: rxDetails.medicines.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final med = rxDetails.medicines[index];
                       return _buildMedicineCard(context, provider, med);
@@ -228,7 +228,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Widget _buildMedicineCard(
     BuildContext context,
     PrescriptionProvider provider,
-    PrescriptionMedicineDetails med,
+    PrescriptionMedicine med,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -287,7 +287,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   void _showEditDialog(
     BuildContext context,
     PrescriptionProvider provider,
-    PrescriptionMedicineDetails med,
+    PrescriptionMedicine med,
   ) {
     final nameCtrl = TextEditingController(text: med.medicineName);
     final strengthCtrl = TextEditingController(text: med.strength);
