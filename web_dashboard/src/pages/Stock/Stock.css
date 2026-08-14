@@ -1,0 +1,47 @@
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.page-description {
+  font-size: 15px;
+  color: #64748b;
+}
+
+.placeholder-content {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  padding: 40px;
+  text-align: center;
+}
+
+.info-card {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.info-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.info-card p {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+}
