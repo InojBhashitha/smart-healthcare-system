@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../models/cdss/cdss_safety_response.dart';
 import '../models/prescription/prescription_details.dart';
 import '../models/prescription/prescription_summary.dart';
 import '../models/prescription/upload_prescription_response.dart';
@@ -46,10 +47,20 @@ class PrescriptionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<void> uploadPrescription() async {
     if (_selectedImage == null) return;
 
     _isUploading = true;
+    _errorMessage = null;
+    _uploadResponse = null;
     notifyListeners();
 
     try {
@@ -68,12 +79,23 @@ class PrescriptionProvider extends ChangeNotifier {
         debugPrint(
             _prescriptionDetails?.medicines.length.toString());
         debugPrint("==============");
+      } else if (_uploadResponse?.message != null) {
+        _errorMessage = _uploadResponse!.message;
       }
+    } catch (e) {
+      _errorMessage = "Upload failed: ${e.toString().replaceAll('Exception:', '').trim()}";
+      debugPrint("Prescription upload error: $e");
     } finally {
       _isUploading = false;
       notifyListeners();
     }
   }
+
+  CdssSafetyResponse? _cdssReport;
+  CdssSafetyResponse? get cdssReport => _cdssReport;
+
+  bool _isCdssLoading = false;
+  bool get isCdssLoading => _isCdssLoading;
 
   Future<void> loadPrescription(int prescriptionId) async {
     _prescriptionDetails =
@@ -82,6 +104,44 @@ class PrescriptionProvider extends ChangeNotifier {
     );
 
     notifyListeners();
+
+    // Also load CDSS safety analysis
+    await loadCdssSafety(prescriptionId);
+  }
+
+  Future<void> loadCdssSafety(int prescriptionId) async {
+    _isCdssLoading = true;
+    notifyListeners();
+
+    try {
+      final json = await _prescriptionService.analyzeCdssSafety(prescriptionId);
+      _cdssReport = CdssSafetyResponse.fromJson(json);
+    } catch (e) {
+      debugPrint("Failed to load CDSS safety analysis: $e");
+      _cdssReport = null;
+    } finally {
+      _isCdssLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateMedicine(
+    int medicineId, {
+    required String name,
+    required String strength,
+    required String instruction,
+  }) async {
+    await _prescriptionService.updateMedicine(
+      medicineId,
+      medicineName: name,
+      strength: strength,
+      instruction: instruction,
+      verified: true,
+    );
+
+    if (_prescriptionDetails?.prescriptionId != null) {
+      await loadPrescription(_prescriptionDetails!.prescriptionId);
+    }
   }
 
   Future<void> loadPrescriptionHistory() async {

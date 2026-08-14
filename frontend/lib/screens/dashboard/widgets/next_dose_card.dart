@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../providers/treatment_plan_provider.dart';
 
 class NextDoseCard extends StatefulWidget {
   const NextDoseCard({super.key});
@@ -13,53 +15,110 @@ class NextDoseCard extends StatefulWidget {
 }
 
 class _NextDoseCardState extends State<NextDoseCard> {
-  bool _isTaken = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TreatmentPlanProvider>().loadTodayDoses();
+      context.read<TreatmentPlanProvider>().loadAnalytics();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(
-          color: _isTaken
-              ? AppColors.success.withValues(alpha: 0.2)
-              : Colors.white.withValues(alpha: 0.05),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _isTaken
-                ? AppColors.success.withValues(alpha: 0.05)
-                : Colors.black.withValues(alpha: 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 560;
+    return Consumer<TreatmentPlanProvider>(
+      builder: (context, provider, child) {
+        final todayDoses = provider.todayDoses;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        if (provider.isLoading) {
+          return Container(
+            height: 100,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.card.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(AppRadius.large),
+            ),
+            child: const CircularProgressIndicator(color: AppColors.primary),
+          );
+        }
+
+        if (todayDoses.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.card.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.medication_rounded, color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "No Scheduled Doses Today",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      Text(
+                        "Scan or upload a prescription to generate a smart daily dosage plan.",
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: todayDoses.map((dose) {
+            final isTaken = dose['status'] == 'TAKEN';
+            final String medName = dose['medicineName'] ?? 'Medication';
+            final String strength = dose['strength'] ?? '';
+            final String instruction = dose['instruction'] ?? '';
+            final String slot = dose['doseSlot'] ?? 'MORNING';
+            final int scheduleId = dose['scheduleId'] ?? 0;
+
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.card.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(
+                  color: isTaken
+                      ? AppColors.success.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.05),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _isTaken
+                      color: isTaken
                           ? AppColors.success.withValues(alpha: 0.12)
                           : AppColors.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _isTaken ? Icons.check_circle_rounded : Icons.alarm_rounded,
-                      color: _isTaken ? AppColors.success : AppColors.primary,
+                      isTaken ? Icons.check_circle_rounded : Icons.alarm_rounded,
+                      color: isTaken ? AppColors.success : AppColors.primary,
                       size: 28,
                     ),
                   ),
@@ -67,168 +126,101 @@ class _NextDoseCardState extends State<NextDoseCard> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _isTaken
+                      children: isTaken
                           ? [
-                              const Text(
-                                "Dose Completed!",
-                                style: TextStyle(
+                              Text(
+                                "Dose Completed ($slot)",
+                                style: const TextStyle(
                                   color: AppColors.success,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: 15,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "You took Panadol 500mg at 8:05 PM",
+                                "You took $medName ($strength)",
                                 style: AppTextStyles.caption.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ]
                           : [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 4,
-                                children: [
-                                  const Text(
-                                    "Next Scheduled Dose",
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.warning.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      "In 2 hours",
-                                      style: TextStyle(
-                                        color: AppColors.warning,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
                               Text(
-                                "Panadol (Paracetamol)",
+                                "Scheduled Dose ($slot)",
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                medName,
                                 style: AppTextStyles.title.copyWith(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 2),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 4,
-                                children: [
-                                  Text(
-                                    "500mg • 2 Tablets",
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                              if (strength.isNotEmpty || instruction.isNotEmpty)
+                                Text(
+                                  "$strength ${instruction.isNotEmpty ? '• $instruction' : ''}",
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textSecondary,
                                   ),
-                                  Text(
-                                    "•",
-                                    style: TextStyle(color: AppColors.textDisabled),
-                                  ),
-                                  Text(
-                                    "After Meals",
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
                             ],
                     ),
                   ),
-                  if (!isCompact) ...[
-                    const SizedBox(width: AppSpacing.md),
-                    _buildActionButton(context),
-                  ],
+                  _buildActionButton(context, provider, scheduleId, isTaken),
                 ],
               ),
-              if (isCompact) ...[
-                const SizedBox(height: AppSpacing.md),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _buildActionButton(context),
-                ),
-              ],
-            ],
-          );
-        },
-      ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
-  Widget _buildActionButton(BuildContext context) {
-    if (_isTaken) {
+  Widget _buildActionButton(
+    BuildContext context,
+    TreatmentPlanProvider provider,
+    int scheduleId,
+    bool isTaken,
+  ) {
+    if (isTaken) {
       return IconButton(
-        onPressed: () {
-          setState(() {
-            _isTaken = false;
-          });
+        onPressed: () async {
+          await provider.logDoseStatus(scheduleId, "PENDING");
         },
-        icon: const Icon(
-          Icons.undo_rounded,
-          color: AppColors.textSecondary,
-        ),
+        icon: const Icon(Icons.undo_rounded, color: AppColors.textSecondary),
       );
     }
 
     return ElevatedButton(
-      onPressed: () {
-        setState(() {
-          _isTaken = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Medication recorded successfully!"),
-            backgroundColor: AppColors.success,
-            duration: Duration(seconds: 2),
-          ),
-        );
+      onPressed: () async {
+        await provider.logDoseStatus(scheduleId, "TAKEN");
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Dose recorded as taken!"),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.success.withValues(alpha: 0.15),
         foregroundColor: AppColors.success,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.medium),
-          side: const BorderSide(
-            color: AppColors.success,
-            width: 1,
-          ),
+          side: const BorderSide(color: AppColors.success, width: 1),
         ),
       ),
-      child: const Text(
-        "Take",
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: const Text("Take", style: TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }
+

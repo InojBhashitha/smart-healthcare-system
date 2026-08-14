@@ -5,6 +5,7 @@ public class MedicineInfo {
     private String name;
     private String strength;
     private String instruction;
+    private double confidence;
 
     public MedicineInfo() {
     }
@@ -13,6 +14,14 @@ public class MedicineInfo {
         this.name = name;
         this.strength = strength;
         this.instruction = instruction;
+        this.confidence = 0.0;
+    }
+
+    public MedicineInfo(String name, String strength, String instruction, double confidence) {
+        this.name = name;
+        this.strength = strength;
+        this.instruction = instruction;
+        this.confidence = confidence;
     }
 
     public String getName() {
@@ -37,5 +46,13 @@ public class MedicineInfo {
 
     public void setInstruction(String instruction) {
         this.instruction = instruction;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(double confidence) {
+        this.confidence = confidence;
     }
 }

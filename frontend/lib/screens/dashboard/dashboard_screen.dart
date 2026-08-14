@@ -8,13 +8,18 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../providers/patient_profile_provider.dart';
+import '../../providers/pharmacy_provider.dart';
+import '../../providers/prescription_provider.dart';
+import '../../providers/treatment_plan_provider.dart';
 import '../../widgets/buttons/custom_button.dart';
 import '../../screens/dashboard/widgets/recent_prescriptions_card.dart';
 import 'widgets/active_prescription_tracker.dart';
-import 'widgets/compliance_wave_painter.dart';
 import 'widgets/dashboard_header.dart';
 import 'widgets/next_dose_card.dart';
 import 'widgets/overview_module_card.dart';
+import 'widgets/weekly_analytics_chart.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,10 +32,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDashboardData();
+    });
+  }
+
+  Future<void> _loadDashboardData() async {
+    await Future.wait([
+      context.read<PrescriptionProvider>().loadPrescriptionHistory(),
+      context.read<TreatmentPlanProvider>().loadTodayDoses(),
+      context.read<TreatmentPlanProvider>().loadAnalytics(),
+      context.read<PatientProfileProvider>().loadProfile(),
+      context.read<PharmacyProvider>().searchPharmacies(),
+      context.read<NotificationProvider>().loadNotifications(),
+    ]);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final String displayName = authProvider.userName ?? "Adheesha Sooriyaarachchi";
-    final String email = "${displayName.toLowerCase().replaceAll(" ", "")}@gmail.com";
+    final String displayName = authProvider.userName ?? "User";
+    final String email = authProvider.userEmail ??
+        "${displayName.toLowerCase().replaceAll(" ", "")}@gmail.com";
 
     // Select view body depending on current active index
     Widget bodyView;
@@ -54,11 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            await Future.delayed(
-              const Duration(seconds: 1),
-            );
-          },
+          onRefresh: _loadDashboardData,
           child: bodyView,
         ),
       ),
@@ -373,111 +394,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const SizedBox(height: AppSpacing.xl),
 
-                // Section Label: VITALS ADHERENCE RATE
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "VITALS ADHERENCE RATE",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDisabled,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: AppColors.success,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          "+12% THIS WEEK",
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.md),
-
-                // Compliance Wave Chart Card
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.card.withValues(alpha: 0.75),
-                    borderRadius: BorderRadius.circular(AppRadius.large),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "94%",
-                                style: AppTextStyles.headline.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 24,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Average Compliance",
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              "Optimal",
-                              style: TextStyle(
-                                color: AppColors.success,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      // Drawing the custom smooth compliance curve
-                      const SizedBox(
-                        width: double.infinity,
-                        height: 80,
-                        child: CustomPaint(
-                          painter: ComplianceWavePainter(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Weekly Adherence Analytics Chart with Real Data
+                const WeeklyAnalyticsChart(),
 
                 const SizedBox(height: AppSpacing.xl),
 
@@ -496,7 +414,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        setState(() => _currentIndex = 2); // Switch to Alerts
+                        Navigator.pushNamed(context, AppRoutes.todaySchedule);
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
@@ -648,32 +566,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               
-              _buildPharmacyCard(
-                name: "Union Chemists",
-                address: "24 Galle Road, Colombo 03",
-                distance: "0.8 km",
-                availability: "Stock Available",
-                isAvailable: true,
-                phone: "+94 11 234 5678",
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildPharmacyCard(
-                name: "Lanka Organics Pharmacy",
-                address: "182 High Level Road, Nugegoda",
-                distance: "2.4 km",
-                availability: "Low Stock",
-                isAvailable: false,
-                isLow: true,
-                phone: "+94 11 987 6543",
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildPharmacyCard(
-                name: "City Health Pharmacy",
-                address: "56 Station Road, Bambalapitiya",
-                distance: "3.1 km",
-                availability: "Stock Available",
-                isAvailable: true,
-                phone: "+94 11 456 7890",
+              Consumer<PharmacyProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    );
+                  }
+
+                  final pharmacies = provider.pharmacies;
+                  if (pharmacies.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Text(
+                          "No partner pharmacies found nearby.",
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: pharmacies.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (context, index) {
+                      final item = pharmacies[index];
+                      final int pharmacyId = item['pharmacyId'] ?? 0;
+                      final String name = item['name'] ?? 'Pharmacy';
+                      final String address = item['address'] ?? '';
+                      final double distanceKm = (item['distanceKm'] as num? ?? 0.0).toDouble();
+                      final String stockStatus = item['stockStatus'] ?? 'IN_STOCK';
+                      final String phone = item['phone'] ?? '';
+
+                      return _buildPharmacyCard(
+                        context: context,
+                        pharmacyId: pharmacyId,
+                        name: name,
+                        address: address,
+                        distance: "${distanceKm.toStringAsFixed(1)} km",
+                        stockStatus: stockStatus,
+                        phone: phone,
+                      );
+                    },
+                  );
+                },
               ),
             ]),
           ),
@@ -683,17 +625,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildPharmacyCard({
+    required BuildContext context,
+    required int pharmacyId,
     required String name,
     required String address,
     required String distance,
-    required String availability,
-    bool isAvailable = false,
-    bool isLow = false,
+    required String stockStatus,
     required String phone,
   }) {
+    final bool isAvailable = stockStatus == 'IN_STOCK';
+    final bool isLow = stockStatus == 'LOW_STOCK';
     final statusColor = isAvailable
         ? AppColors.success
         : (isLow ? Colors.amber : AppColors.danger);
+    final statusText = isAvailable
+        ? "Stock Available"
+        : (isLow ? "Low Stock" : "Out of Stock");
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -701,72 +649,204 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(AppRadius.medium),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1.2),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        availability,
-                        style: TextStyle(color: statusColor, fontSize: 9.5, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  address,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.phone_rounded, color: AppColors.textDisabled, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      phone,
-                      style: const TextStyle(color: AppColors.textDisabled, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                distance,
-                style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(color: statusColor, fontSize: 9.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone_rounded, color: AppColors.textDisabled, size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          phone,
+                          style: const TextStyle(color: AppColors.textDisabled, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildMiniActionBtn(Icons.call_rounded, () {}),
-                  const SizedBox(width: 6),
-                  _buildMiniActionBtn(Icons.directions_rounded, () {}),
+                  Text(
+                    distance,
+                    style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildMiniActionBtn(Icons.call_rounded, () {}),
+                      const SizedBox(width: 6),
+                      _buildMiniActionBtn(Icons.directions_rounded, () {}),
+                    ],
+                  ),
                 ],
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: stockStatus == 'OUT_OF_STOCK'
+                  ? null
+                  : () => _handleReservePrescription(context, pharmacyId, name),
+              icon: const Icon(Icons.bookmark_add_rounded, size: 16),
+              label: const Text("Reserve Prescription", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                foregroundColor: AppColors.primary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: AppColors.primary, width: 1),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleReservePrescription(BuildContext context, int pharmacyId, String pharmacyName) async {
+    final rxProvider = context.read<PrescriptionProvider>();
+    final rxList = rxProvider.prescriptionSummaries;
+
+    if (rxList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No prescription available to reserve. Please upload a prescription first."),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final latestRxId = rxList.first.prescriptionId;
+
+    try {
+      final reservation = await context.read<PharmacyProvider>().createReservation(
+        prescriptionId: latestRxId,
+        pharmacyId: pharmacyId,
+      );
+
+      if (context.mounted && reservation != null) {
+        _showDigitalPickupPassDialog(context, reservation, pharmacyName);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to reserve: $e"), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
+  void _showDigitalPickupPassDialog(BuildContext context, Map<String, dynamic> reservation, String pharmacyName) {
+    final code = reservation['pickupCode'] ?? 'RX-RES-8492';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+            SizedBox(height: 8),
+            Text(
+              "Reservation Confirmed!",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Your medicines have been reserved at $pharmacyName.",
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary, width: 1.5),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    "DIGITAL PICKUP CODE",
+                    style: TextStyle(color: AppColors.textDisabled, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    code,
+                    style: const TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Show this code at the pharmacy counter to collect your medicines.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Done", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
@@ -797,161 +877,167 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: const EdgeInsets.all(AppSpacing.lg),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Alerts Center",
-                    style: AppTextStyles.title.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text("Clear All", style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
-                  ),
-                ],
+              Consumer<NotificationProvider>(
+                builder: (context, provider, child) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Alerts Center",
+                        style: AppTextStyles.title.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      if (provider.notifications.isNotEmpty)
+                        TextButton(
+                          onPressed: () => provider.clearAll(),
+                          child: const Text("Clear All", style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 4),
               Text(
-                "Dosage alarms, interactions, and scanner warnings",
+                "Dosage alarms, safety warnings, and reservation updates",
                 style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.lg),
-              
-              // Interaction Warning Card
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(AppRadius.large),
-                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.25), width: 1.5),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+
+              Consumer<NotificationProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(color: AppColors.primary),
                       ),
-                      child: const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 24),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Drug Interaction Warning",
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Aspirin & Warfarin should not be taken together. A high risk of severe bleeding has been detected. Please consult your physician.",
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11.5, height: 1.4),
-                          ),
-                        ],
+                    );
+                  }
+
+                  final list = provider.notifications;
+                  if (list.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.notifications_none_rounded, color: Colors.white38, size: 54),
+                            const SizedBox(height: 12),
+                            const Text(
+                              "No New Alerts",
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              "You are all caught up! Dosage alarms and safety warnings will appear here.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              
-              const Text(
-                "RECENT REMINDERS & ALERTS",
-                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.textDisabled, letterSpacing: 1.0),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              
-              _buildAlertTile(
-                title: "Dose Reminder: Panadol 500mg",
-                time: "In 2 hours • 8:00 PM",
-                details: "Take 1 tablet after meals.",
-                icon: Icons.medication_rounded,
-                color: const Color(0xFF0D9488),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildAlertTile(
-                title: "OCR Scan Verified Successfully",
-                time: "Today • 11:34 AM",
-                details: "Prescription Scan #48 has been matched to Ceylon Pharma stock.",
-                icon: Icons.check_circle_rounded,
-                color: const Color(0xFF16A34A),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildAlertTile(
-                title: "Connected Device Disconnected",
-                time: "Yesterday • 4:12 PM",
-                details: "Your MediSync smart pillbox has disconnected from Bluetooth.",
-                icon: Icons.bluetooth_disabled_rounded,
-                color: const Color(0xFFEF4444),
+                    );
+                  }
+
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (context, index) {
+                      final item = list[index];
+                      final int notificationId = item['notificationId'] ?? 0;
+                      final String title = item['title'] ?? 'Alert';
+                      final String message = item['message'] ?? '';
+                      final String type = (item['type'] ?? 'DOSE_REMINDER').toString().toUpperCase();
+                      final bool isRead = item['isRead'] ?? false;
+                      final String time = item['createdAt'] != null ? item['createdAt'].toString().substring(11, 16) : 'Now';
+
+                      Color typeColor = AppColors.primary;
+                      IconData typeIcon = Icons.notifications_active_rounded;
+
+                      if (type == 'SAFETY_WARNING') {
+                        typeColor = AppColors.danger;
+                        typeIcon = Icons.warning_amber_rounded;
+                      } else if (type == 'REFILL_NOTICE') {
+                        typeColor = Colors.orangeAccent;
+                        typeIcon = Icons.refresh_rounded;
+                      } else if (type == 'RESERVATION_CONFIRMED') {
+                        typeColor = AppColors.success;
+                        typeIcon = Icons.check_circle_rounded;
+                      }
+
+                      return InkWell(
+                        onTap: () => provider.markAsRead(notificationId),
+                        borderRadius: BorderRadius.circular(AppRadius.medium),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isRead
+                                ? AppColors.card.withValues(alpha: 0.4)
+                                : typeColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppRadius.medium),
+                            border: Border.all(
+                              color: isRead
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : typeColor.withValues(alpha: 0.3),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: typeColor.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(typeIcon, color: typeColor, size: 20),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            title,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          time,
+                                          style: const TextStyle(color: AppColors.textDisabled, fontSize: 10),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      message,
+                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ]),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAlertTile({
-    required String title,
-    required String time,
-    required String details,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1.2),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      time.split(" • ").first,
-                      style: const TextStyle(color: AppColors.textDisabled, fontSize: 10),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  details,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1050,6 +1136,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               
+              _buildSettingTile(
+                Icons.picture_as_pdf_rounded,
+                "Export Health Summary (PDF)",
+                "Download doctor-ready PDF report of allergies & adherence",
+                onTap: () {
+                  context.read<NotificationProvider>().downloadPdfReport(context);
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
               _buildSettingTile(Icons.medical_services_rounded, "Personal Health Record", "Blood group, conditions, and diagnoses"),
               const SizedBox(height: AppSpacing.sm),
               _buildSettingTile(Icons.devices_rounded, "Connected Devices", "Smart pillbox, monitors, and sensors"),
@@ -1077,8 +1172,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSettingTile(IconData icon, String title, String subtitle) {
-    return Container(
+  Widget _buildSettingTile(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.medium),
+      child: Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card.withValues(alpha: 0.6),
@@ -1119,6 +1217,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

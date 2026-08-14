@@ -73,6 +73,31 @@ class PrescriptionDetailsScreen extends StatelessWidget {
               medicinesFound: prescription.medicinesFound,
               uploadedAt: prescription.uploadedAt,
             ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.medium),
+                  ),
+                ),
+                icon: const Icon(Icons.shield_outlined, color: Colors.white, size: 20),
+                label: const Text(
+                  "CDSS Safety Check & Verification",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, "/verification");
+                },
+              ),
+            ),
             const SizedBox(height: AppSpacing.xl),
             Text(
               "Recognized Medications",

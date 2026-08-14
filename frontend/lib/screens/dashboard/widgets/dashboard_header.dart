@@ -77,6 +77,28 @@ class DashboardHeader extends StatelessWidget {
             ],
           ),
         ),
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.divider,
+              width: 1,
+            ),
+          ),
+          child: IconButton(
+            tooltip: "Patient Safety & Allergies",
+            onPressed: () {
+              Navigator.pushNamed(context, "/patient-profile");
+            },
+            icon: const Icon(
+              Icons.shield_outlined,
+              color: AppColors.primary,
+              size: 22,
+            ),
+          ),
+        ),
         Stack(
           clipBehavior: Clip.none,
           children: [

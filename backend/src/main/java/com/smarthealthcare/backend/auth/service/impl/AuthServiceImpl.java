@@ -50,10 +50,13 @@ public class AuthServiceImpl implements AuthService {
 
         userRepository.save(user);
 
+        String token = jwtService.generateToken(user.getEmail());
+
         return new AuthResponse(
-                "",
+                token,
                 "User registered successfully",
-                user.getName()
+                user.getName(),
+                user.getEmail()
         );
     }
 
@@ -69,12 +72,13 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtService.generateToken(request.getEmail());
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new com.smarthealthcare.backend.exception.ResourceNotFoundException("User not found"));
 
         return new AuthResponse(
                 token,
                 "Login successful",
-                user.getName()
+                user.getName(),
+                user.getEmail()
         );
     }
 }

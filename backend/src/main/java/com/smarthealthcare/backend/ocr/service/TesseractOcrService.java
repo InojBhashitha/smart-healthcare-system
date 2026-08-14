@@ -1,5 +1,6 @@
 package com.smarthealthcare.backend.ocr.service;
 
+import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
@@ -11,6 +12,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
+@Slf4j
 @Service
 public class TesseractOcrService implements OcrService {
 
@@ -33,10 +35,8 @@ public class TesseractOcrService implements OcrService {
                 throw new RuntimeException("ImageIO could not read image.");
             }
 
-            System.out.println("===== IMAGE INFO =====");
-            System.out.println("Width  : " + image.getWidth());
-            System.out.println("Height : " + image.getHeight());
-            System.out.println("======================");
+            log.debug("Image info — Width: {}, Height: {}",
+                    image.getWidth(), image.getHeight());
 
             return tesseract.doOCR(image);
 
