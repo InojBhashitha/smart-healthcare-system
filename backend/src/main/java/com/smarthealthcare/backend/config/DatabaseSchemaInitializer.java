@@ -61,6 +61,12 @@ public class DatabaseSchemaInitializer {
                 ALTER TABLE dose_logs ADD COLUMN IF NOT EXISTS log_date DATE;
             """);
 
+            // Drop legacy foreign key constraints pointing to old medicine_schedules table
+            jdbcTemplate.execute("""
+                ALTER TABLE dose_logs DROP CONSTRAINT IF EXISTS fk_dose_schedule;
+                ALTER TABLE dose_logs DROP CONSTRAINT IF EXISTS fk_dose_schedules;
+            """);
+
             log.info("PostgreSQL schema integrity check complete!");
         } catch (Exception e) {
             log.error("Failed schema initialization: {}", e.getMessage());
