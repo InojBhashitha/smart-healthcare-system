@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/prescription_provider.dart';
 
+import 'providers/notification_provider.dart';
 import 'providers/patient_profile_provider.dart';
 
 import 'providers/pharmacy_provider.dart';
@@ -32,6 +33,9 @@ void main() {
         ),
         ChangeNotifierProvider(
           create: (_) => PharmacyProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => NotificationProvider(),
         ),
       ],
       child: const SmartHealthcareApp(),
