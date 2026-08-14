@@ -5,6 +5,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String dashboard = '/dashboard';
+  static const todaySchedule = "/today-schedule";
   static const patientProfile = "/patient-profile";
   static const uploadPrescription = "/upload-prescription";
   static const verification = "/verification";

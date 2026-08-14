@@ -410,7 +410,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        setState(() => _currentIndex = 2); // Switch to Alerts
+                        Navigator.pushNamed(context, AppRoutes.todaySchedule);
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,

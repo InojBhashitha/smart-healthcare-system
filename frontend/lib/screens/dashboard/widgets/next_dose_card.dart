@@ -82,35 +82,30 @@ class _NextDoseCardState extends State<NextDoseCard> {
           );
         }
 
-        final nextDose = todayDoses.firstWhere(
-          (d) => d['status'] == 'PENDING',
-          orElse: () => todayDoses.first,
-        );
+        return Column(
+          children: todayDoses.map((dose) {
+            final isTaken = dose['status'] == 'TAKEN';
+            final String medName = dose['medicineName'] ?? 'Medication';
+            final String strength = dose['strength'] ?? '';
+            final String instruction = dose['instruction'] ?? '';
+            final String slot = dose['doseSlot'] ?? 'MORNING';
+            final int scheduleId = dose['scheduleId'] ?? 0;
 
-        final isTaken = nextDose['status'] == 'TAKEN';
-        final String medName = nextDose['medicineName'] ?? 'Medication';
-        final String strength = nextDose['strength'] ?? '';
-        final String instruction = nextDose['instruction'] ?? '';
-        final String slot = nextDose['doseSlot'] ?? 'MORNING';
-        final int scheduleId = nextDose['scheduleId'] ?? 0;
-
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.card.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(AppRadius.large),
-            border: Border.all(
-              color: isTaken
-                  ? AppColors.success.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.05),
-              width: 1.5,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.card.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(
+                  color: isTaken
+                      ? AppColors.success.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.05),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
@@ -133,12 +128,12 @@ class _NextDoseCardState extends State<NextDoseCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: isTaken
                           ? [
-                              const Text(
-                                "Dose Completed!",
-                                style: TextStyle(
+                              Text(
+                                "Dose Completed ($slot)",
+                                style: const TextStyle(
                                   color: AppColors.success,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: 15,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -150,18 +145,13 @@ class _NextDoseCardState extends State<NextDoseCard> {
                               ),
                             ]
                           : [
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  Text(
-                                    "Next Scheduled Dose ($slot)",
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                "Scheduled Dose ($slot)",
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -184,8 +174,8 @@ class _NextDoseCardState extends State<NextDoseCard> {
                   _buildActionButton(context, provider, scheduleId, isTaken),
                 ],
               ),
-            ],
-          ),
+            );
+          }).toList(),
         );
       },
     );

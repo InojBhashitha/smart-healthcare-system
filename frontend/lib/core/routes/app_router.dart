@@ -10,6 +10,7 @@ import '../../screens/profile/patient_profile_screen.dart';
 import '../../screens/prescriptions/upload/upload_screen.dart';
 import '../../screens/prescriptions/details/prescription_details_screen.dart';
 import '../../screens/prescriptions/verification/verification_screen.dart';
+import '../../screens/treatment/today_dose_schedule_screen.dart';
 import '../../widgets/auth_guard.dart';
 
 class AppRouter {
@@ -36,6 +37,13 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const AuthGuard(
             child: DashboardScreen(),
+          ),
+        );
+
+      case AppRoutes.todaySchedule:
+        return MaterialPageRoute(
+          builder: (_) => const AuthGuard(
+            child: TodayDoseScheduleScreen(),
           ),
         );
 
