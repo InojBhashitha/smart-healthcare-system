@@ -33,17 +33,27 @@ public class PharmacyDataSeeder {
 
     @PostConstruct
     public void seedPharmacyData() {
-        if (pharmacyRepository.count() > 0) {
-            log.info("Partner pharmacies already seeded in PostgreSQL.");
+        if (pharmacyRepository.count() > 0 && stockRepository.count() > 0) {
+            log.info("Partner pharmacies and stock already seeded in PostgreSQL.");
             return;
         }
 
         log.info("Seeding realistic demo partner pharmacies and inventory stock...");
 
-        Pharmacy p1 = createPharmacy("Union Chemists", "24 Galle Road, Colombo 03", 6.9147, 79.8540, "+94 11 234 5678", "8:00 AM - 10:00 PM");
-        Pharmacy p2 = createPharmacy("City Health Pharmacy", "56 Station Road, Bambalapitiya", 6.8920, 79.8570, "+94 11 456 7890", "24 Hours");
-        Pharmacy p3 = createPharmacy("Lanka Organics Pharmacy", "182 High Level Road, Nugegoda", 6.8712, 79.8860, "+94 11 987 6543", "8:30 AM - 9:00 PM");
-        Pharmacy p4 = createPharmacy("Medicare Central Pharmacy", "10 Station Road, Dehiwala", 6.8510, 79.8640, "+94 11 333 4444", "8:00 AM - 11:00 PM");
+        List<Pharmacy> pharmacies = pharmacyRepository.findAll();
+        Pharmacy p1, p2, p3, p4;
+
+        if (pharmacies.isEmpty()) {
+            p1 = createPharmacy("Union Chemists", "24 Galle Road, Colombo 03", 6.9147, 79.8540, "+94 11 234 5678", "8:00 AM - 10:00 PM");
+            p2 = createPharmacy("City Health Pharmacy", "56 Station Road, Bambalapitiya", 6.8920, 79.8570, "+94 11 456 7890", "24 Hours");
+            p3 = createPharmacy("Lanka Organics Pharmacy", "182 High Level Road, Nugegoda", 6.8712, 79.8860, "+94 11 987 6543", "8:30 AM - 9:00 PM");
+            p4 = createPharmacy("Medicare Central Pharmacy", "10 Station Road, Dehiwala", 6.8510, 79.8640, "+94 11 333 4444", "8:00 AM - 11:00 PM");
+        } else {
+            p1 = pharmacies.get(0);
+            p2 = pharmacies.size() > 1 ? pharmacies.get(1) : p1;
+            p3 = pharmacies.size() > 2 ? pharmacies.get(2) : p1;
+            p4 = pharmacies.size() > 3 ? pharmacies.get(3) : p1;
+        }
 
         List<Medicine> medicines = medicineRepository.findAll();
 

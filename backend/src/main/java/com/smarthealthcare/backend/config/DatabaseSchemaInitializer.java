@@ -67,6 +67,44 @@ public class DatabaseSchemaInitializer {
                 ALTER TABLE dose_logs DROP CONSTRAINT IF EXISTS fk_dose_schedules;
             """);
 
+            // Create pharmacies table if not exists
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS pharmacies (
+                    pharmacy_id BIGSERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    address VARCHAR(255) NOT NULL,
+                    latitude DOUBLE PRECISION NOT NULL,
+                    longitude DOUBLE PRECISION NOT NULL,
+                    phone VARCHAR(50),
+                    operating_hours VARCHAR(100),
+                    is_verified BOOLEAN NOT NULL DEFAULT TRUE
+                );
+            """);
+
+            // Create pharmacy_stocks table if not exists
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS pharmacy_stocks (
+                    stock_id BIGSERIAL PRIMARY KEY,
+                    pharmacy_id BIGINT NOT NULL,
+                    medicine_id BIGINT NOT NULL,
+                    unit_price NUMERIC(10,2),
+                    quantity_available INT NOT NULL DEFAULT 0
+                );
+            """);
+
+            // Create prescription_reservations table if not exists
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS prescription_reservations (
+                    reservation_id BIGSERIAL PRIMARY KEY,
+                    prescription_id BIGINT NOT NULL,
+                    pharmacy_id BIGINT NOT NULL,
+                    user_id BIGINT NOT NULL,
+                    status VARCHAR(50) NOT NULL DEFAULT 'CONFIRMED',
+                    pickup_code VARCHAR(50) NOT NULL UNIQUE,
+                    reserved_at TIMESTAMP NOT NULL
+                );
+            """);
+
             log.info("PostgreSQL schema integrity check complete!");
         } catch (Exception e) {
             log.error("Failed schema initialization: {}", e.getMessage());
