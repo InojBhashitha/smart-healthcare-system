@@ -9,6 +9,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/patient_profile_provider.dart';
+import '../../providers/pharmacy_provider.dart';
 import '../../providers/prescription_provider.dart';
 import '../../providers/treatment_plan_provider.dart';
 import '../../widgets/buttons/custom_button.dart';
@@ -43,6 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<TreatmentPlanProvider>().loadTodayDoses(),
       context.read<TreatmentPlanProvider>().loadAnalytics(),
       context.read<PatientProfileProvider>().loadProfile(),
+      context.read<PharmacyProvider>().searchPharmacies(),
     ]);
   }
 
@@ -562,32 +564,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               
-              _buildPharmacyCard(
-                name: "Union Chemists",
-                address: "24 Galle Road, Colombo 03",
-                distance: "0.8 km",
-                availability: "Stock Available",
-                isAvailable: true,
-                phone: "+94 11 234 5678",
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildPharmacyCard(
-                name: "Lanka Organics Pharmacy",
-                address: "182 High Level Road, Nugegoda",
-                distance: "2.4 km",
-                availability: "Low Stock",
-                isAvailable: false,
-                isLow: true,
-                phone: "+94 11 987 6543",
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildPharmacyCard(
-                name: "City Health Pharmacy",
-                address: "56 Station Road, Bambalapitiya",
-                distance: "3.1 km",
-                availability: "Stock Available",
-                isAvailable: true,
-                phone: "+94 11 456 7890",
+              Consumer<PharmacyProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    );
+                  }
+
+                  final pharmacies = provider.pharmacies;
+                  if (pharmacies.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Text(
+                          "No partner pharmacies found nearby.",
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: pharmacies.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (context, index) {
+                      final item = pharmacies[index];
+                      final int pharmacyId = item['pharmacyId'] ?? 0;
+                      final String name = item['name'] ?? 'Pharmacy';
+                      final String address = item['address'] ?? '';
+                      final double distanceKm = (item['distanceKm'] as num? ?? 0.0).toDouble();
+                      final String stockStatus = item['stockStatus'] ?? 'IN_STOCK';
+                      final String phone = item['phone'] ?? '';
+
+                      return _buildPharmacyCard(
+                        context: context,
+                        pharmacyId: pharmacyId,
+                        name: name,
+                        address: address,
+                        distance: "${distanceKm.toStringAsFixed(1)} km",
+                        stockStatus: stockStatus,
+                        phone: phone,
+                      );
+                    },
+                  );
+                },
               ),
             ]),
           ),
@@ -597,17 +623,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildPharmacyCard({
+    required BuildContext context,
+    required int pharmacyId,
     required String name,
     required String address,
     required String distance,
-    required String availability,
-    bool isAvailable = false,
-    bool isLow = false,
+    required String stockStatus,
     required String phone,
   }) {
+    final bool isAvailable = stockStatus == 'IN_STOCK';
+    final bool isLow = stockStatus == 'LOW_STOCK';
     final statusColor = isAvailable
         ? AppColors.success
         : (isLow ? Colors.amber : AppColors.danger);
+    final statusText = isAvailable
+        ? "Stock Available"
+        : (isLow ? "Low Stock" : "Out of Stock");
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -615,72 +647,204 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(AppRadius.medium),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1.2),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        availability,
-                        style: TextStyle(color: statusColor, fontSize: 9.5, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  address,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.phone_rounded, color: AppColors.textDisabled, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      phone,
-                      style: const TextStyle(color: AppColors.textDisabled, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                distance,
-                style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(color: statusColor, fontSize: 9.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone_rounded, color: AppColors.textDisabled, size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          phone,
+                          style: const TextStyle(color: AppColors.textDisabled, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildMiniActionBtn(Icons.call_rounded, () {}),
-                  const SizedBox(width: 6),
-                  _buildMiniActionBtn(Icons.directions_rounded, () {}),
+                  Text(
+                    distance,
+                    style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildMiniActionBtn(Icons.call_rounded, () {}),
+                      const SizedBox(width: 6),
+                      _buildMiniActionBtn(Icons.directions_rounded, () {}),
+                    ],
+                  ),
                 ],
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: stockStatus == 'OUT_OF_STOCK'
+                  ? null
+                  : () => _handleReservePrescription(context, pharmacyId, name),
+              icon: const Icon(Icons.bookmark_add_rounded, size: 16),
+              label: const Text("Reserve Prescription", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                foregroundColor: AppColors.primary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: AppColors.primary, width: 1),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleReservePrescription(BuildContext context, int pharmacyId, String pharmacyName) async {
+    final rxProvider = context.read<PrescriptionProvider>();
+    final rxList = rxProvider.prescriptionSummaries;
+
+    if (rxList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No prescription available to reserve. Please upload a prescription first."),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final latestRxId = rxList.first.prescriptionId;
+
+    try {
+      final reservation = await context.read<PharmacyProvider>().createReservation(
+        prescriptionId: latestRxId,
+        pharmacyId: pharmacyId,
+      );
+
+      if (context.mounted && reservation != null) {
+        _showDigitalPickupPassDialog(context, reservation, pharmacyName);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to reserve: $e"), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
+  void _showDigitalPickupPassDialog(BuildContext context, Map<String, dynamic> reservation, String pharmacyName) {
+    final code = reservation['pickupCode'] ?? 'RX-RES-8492';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+            SizedBox(height: 8),
+            Text(
+              "Reservation Confirmed!",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Your medicines have been reserved at $pharmacyName.",
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary, width: 1.5),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    "DIGITAL PICKUP CODE",
+                    style: TextStyle(color: AppColors.textDisabled, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    code,
+                    style: const TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Show this code at the pharmacy counter to collect your medicines.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Done", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
