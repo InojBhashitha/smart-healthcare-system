@@ -90,6 +90,15 @@ public class TreatmentPlanService {
 
     public List<DoseItemResponse> getTodayDoseChecklist(Long userId) {
         List<DoseSchedule> activeSchedules = scheduleRepository.findActiveSchedulesByUserId(userId);
+
+        if (activeSchedules.isEmpty()) {
+            List<Prescription> userRxs = prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(userId);
+            if (!userRxs.isEmpty()) {
+                generatePlanFromPrescription(userRxs.get(0).getPrescriptionId());
+                activeSchedules = scheduleRepository.findActiveSchedulesByUserId(userId);
+            }
+        }
+
         LocalDate today = LocalDate.now();
 
         List<DoseItemResponse> checklist = new ArrayList<>();
