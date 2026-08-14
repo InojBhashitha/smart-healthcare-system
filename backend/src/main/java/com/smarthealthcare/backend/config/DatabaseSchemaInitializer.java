@@ -73,12 +73,21 @@ public class DatabaseSchemaInitializer {
                     pharmacy_id BIGSERIAL PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     address VARCHAR(255) NOT NULL,
-                    latitude DOUBLE PRECISION NOT NULL,
-                    longitude DOUBLE PRECISION NOT NULL,
+                    latitude DOUBLE PRECISION NOT NULL DEFAULT 6.9271,
+                    longitude DOUBLE PRECISION NOT NULL DEFAULT 79.8612,
                     phone VARCHAR(50),
                     operating_hours VARCHAR(100),
                     is_verified BOOLEAN NOT NULL DEFAULT TRUE
                 );
+            """);
+
+            // Ensure missing columns are added if pharmacies table was pre-existing
+            jdbcTemplate.execute("""
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT TRUE;
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION DEFAULT 6.9271;
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION DEFAULT 79.8612;
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS operating_hours VARCHAR(100);
             """);
 
             // Create pharmacy_stocks table if not exists
