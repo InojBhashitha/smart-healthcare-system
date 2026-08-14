@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../models/cdss/cdss_safety_response.dart';
 import '../../../models/prescription/prescription_medicine.dart';
 import '../../../providers/prescription_provider.dart';
+import '../../../providers/treatment_plan_provider.dart';
 
 class VerificationScreen extends StatefulWidget {
   const VerificationScreen({super.key});
@@ -127,14 +128,23 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         fontSize: 15,
                       ),
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Prescription verified! Creating treatment schedule..."),
-                          backgroundColor: AppColors.primary,
-                        ),
-                      );
-                      Navigator.pop(context);
+                    onPressed: () async {
+                      if (rxDetails.prescriptionId != 0) {
+                        await context
+                            .read<TreatmentPlanProvider>()
+                            .generatePlan(rxDetails.prescriptionId);
+                      }
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                "Prescription verified! Treatment schedule created."),
+                            backgroundColor: AppColors.primary,
+                          ),
+                        );
+                        Navigator.pop(context);
+                      }
                     },
                   ),
                 ),
