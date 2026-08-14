@@ -33,7 +33,11 @@ class WeeklyAnalyticsChart extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,7 +58,6 @@ class WeeklyAnalyticsChart extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -62,23 +65,25 @@ class WeeklyAnalyticsChart extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           "🔥 $streak d",
                           style: const TextStyle(
                             color: Colors.orangeAccent,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 11.5,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.stars_rounded, color: AppColors.primary, size: 16),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.stars_rounded, color: AppColors.primary, size: 15),
                         const SizedBox(width: 4),
                         Text(
                           "Score: ${adherenceScore.toStringAsFixed(1)}%",
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
+                            fontSize: 11.5,
                           ),
                         ),
                       ],
