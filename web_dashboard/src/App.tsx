@@ -1,9 +1,15 @@
-function App() {
-  return (
-    <div>
-      <h1>Pharmacy Web Dashboard</h1>
-    </div>
-  )
-}
+import React from 'react';
+import { AuthProvider } from './contexts/authContext';
+import { Router } from './routes/router';
+import Login from './pages/Login/Login';
+import Dashboard from './pages/Dashboard/Dashboard';
 
-export default App
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <Router loginPage={<Login />} dashboardPage={<Dashboard />} />
+    </AuthProvider>
+  );
+};
+
+export default App;
