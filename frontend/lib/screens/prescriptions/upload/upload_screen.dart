@@ -92,9 +92,9 @@ class UploadScreen extends StatelessWidget {
   final response = provider.uploadResponse;
 
   if (response != null && response.prescriptionId != null) {
-    Navigator.pushNamed(
+    Navigator.pushReplacementNamed(
       context,
-      AppRoutes.prescriptionDetails,
+      AppRoutes.verification,
     );
   }
 },

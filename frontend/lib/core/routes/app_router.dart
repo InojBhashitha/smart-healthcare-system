@@ -8,6 +8,7 @@ import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/prescriptions/history/prescription_history_screen.dart';
 import '../../screens/prescriptions/upload/upload_screen.dart';
 import '../../screens/prescriptions/details/prescription_details_screen.dart';
+import '../../screens/prescriptions/verification/verification_screen.dart';
 import '../../widgets/auth_guard.dart';
 
 class AppRouter {
@@ -41,6 +42,13 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const AuthGuard(
             child: UploadScreen(),
+          ),
+        );
+
+      case AppRoutes.verification:
+        return MaterialPageRoute(
+          builder: (_) => const AuthGuard(
+            child: VerificationScreen(),
           ),
         );
 
