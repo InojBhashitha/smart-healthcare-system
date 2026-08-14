@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../models/cdss/cdss_safety_response.dart';
 import '../models/prescription/prescription_details.dart';
 import '../models/prescription/prescription_summary.dart';
 import '../models/prescription/upload_prescription_response.dart';
@@ -90,6 +91,12 @@ class PrescriptionProvider extends ChangeNotifier {
     }
   }
 
+  CdssSafetyResponse? _cdssReport;
+  CdssSafetyResponse? get cdssReport => _cdssReport;
+
+  bool _isCdssLoading = false;
+  bool get isCdssLoading => _isCdssLoading;
+
   Future<void> loadPrescription(int prescriptionId) async {
     _prescriptionDetails =
         await _prescriptionService.getPrescription(
@@ -97,6 +104,44 @@ class PrescriptionProvider extends ChangeNotifier {
     );
 
     notifyListeners();
+
+    // Also load CDSS safety analysis
+    await loadCdssSafety(prescriptionId);
+  }
+
+  Future<void> loadCdssSafety(int prescriptionId) async {
+    _isCdssLoading = true;
+    notifyListeners();
+
+    try {
+      final json = await _prescriptionService.analyzeCdssSafety(prescriptionId);
+      _cdssReport = CdssSafetyResponse.fromJson(json);
+    } catch (e) {
+      debugPrint("Failed to load CDSS safety analysis: $e");
+      _cdssReport = null;
+    } finally {
+      _isCdssLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateMedicine(
+    int medicineId, {
+    required String name,
+    required String strength,
+    required String instruction,
+  }) async {
+    await _prescriptionService.updateMedicine(
+      medicineId,
+      medicineName: name,
+      strength: strength,
+      instruction: instruction,
+      verified: true,
+    );
+
+    if (_prescriptionDetails?.id != null) {
+      await loadPrescription(_prescriptionDetails!.id);
+    }
   }
 
   Future<void> loadPrescriptionHistory() async {

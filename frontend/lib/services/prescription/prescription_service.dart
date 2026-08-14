@@ -52,4 +52,27 @@ class PrescriptionService {
       response.data,
     );
   }
+
+  Future<Map<String, dynamic>> analyzeCdssSafety(int prescriptionId) async {
+    final response = await _dio.get("/api/cdss/analyze/$prescriptionId");
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<void> updateMedicine(
+    int medicineId, {
+    required String medicineName,
+    required String strength,
+    required String instruction,
+    required bool verified,
+  }) async {
+    await _dio.put(
+      "/api/prescription-medicines/$medicineId",
+      data: {
+        "medicineName": medicineName,
+        "strength": strength,
+        "instruction": instruction,
+        "verified": verified,
+      },
+    );
+  }
 }
