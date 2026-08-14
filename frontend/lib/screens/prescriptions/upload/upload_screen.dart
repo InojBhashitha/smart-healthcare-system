@@ -78,9 +78,20 @@ class UploadScreen extends StatelessWidget {
 
   if (!context.mounted) return;
 
+  if (provider.errorMessage != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(provider.errorMessage!),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
   final response = provider.uploadResponse;
 
-  if (response != null) {
+  if (response != null && response.prescriptionId != null) {
     Navigator.pushNamed(
       context,
       AppRoutes.prescriptionDetails,

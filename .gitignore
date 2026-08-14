@@ -1,25 +1,47 @@
-# Maven
+# Maven / Backend
 target/
+*.jar
+*.war
 
 # Uploaded prescription images
 uploads/
+backend/uploads/
 
-# Eclipse
+# Python / AI Service
+venv/
+ai-service/venv/
+__pycache__/
+ai-service/__pycache__/
+ai-service/app/__pycache__/
+ai-service/app/*/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.env
+
+# Flutter / Mobile Frontend
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugin-dependencies
+frontend/.flutter-plugins-dependencies
+frontend/.pub-cache/
+frontend/.pub/
+frontend/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/ios/Pods/
+frontend/ios/Podfile.lock
+
+# IDEs & Editors
+.idea/
+*.iml
+.vscode/
 .project
 .classpath
 .settings/
 
-# IntelliJ IDEA
-.idea/
-*.iml
-
-# VS Code
-.vscode/
-
-# Logs
+# Logs & OS Files
 *.log
-
-# OS Files
 .DS_Store
 Thumbs.db
 

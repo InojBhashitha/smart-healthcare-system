@@ -46,10 +46,20 @@ class PrescriptionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<void> uploadPrescription() async {
     if (_selectedImage == null) return;
 
     _isUploading = true;
+    _errorMessage = null;
+    _uploadResponse = null;
     notifyListeners();
 
     try {
@@ -68,7 +78,12 @@ class PrescriptionProvider extends ChangeNotifier {
         debugPrint(
             _prescriptionDetails?.medicines.length.toString());
         debugPrint("==============");
+      } else if (_uploadResponse?.message != null) {
+        _errorMessage = _uploadResponse!.message;
       }
+    } catch (e) {
+      _errorMessage = "Upload failed: ${e.toString().replaceAll('Exception:', '').trim()}";
+      debugPrint("Prescription upload error: $e");
     } finally {
       _isUploading = false;
       notifyListeners();
