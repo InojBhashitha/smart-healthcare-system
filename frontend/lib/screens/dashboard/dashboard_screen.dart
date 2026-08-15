@@ -1061,72 +1061,136 @@ class _DashboardScreenState extends State<DashboardScreen> {
             delegate: SliverChildListDelegate([
               const SizedBox(height: AppSpacing.sm),
               // Profile Header Profile Card
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF1E293B).withValues(alpha: 0.8),
-                      const Color(0xFF0F172A).withValues(alpha: 0.9),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadius.large),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1.5),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppGradients.primary,
-                      ),
-                      child: CircleAvatar(
-                        radius: 30,
-                        backgroundColor: AppColors.primary,
-                        child: Text(
-                          initials,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.lg),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayName,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            email,
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              "PATIENT VERIFIED",
-                              style: TextStyle(color: AppColors.secondary, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                            ),
-                          ),
+              Consumer<PatientProfileProvider>(
+                builder: (context, profileProvider, child) {
+                  final allergiesCount = profileProvider.allergies.length;
+                  final activeMedsCount = profileProvider.activeMedications.length;
+
+                  return Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF1E293B).withValues(alpha: 0.8),
+                          const Color(0xFF0F172A).withValues(alpha: 0.9),
                         ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(AppRadius.large),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1.5),
                     ),
-                  ],
-                ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: AppGradients.primary,
+                              ),
+                              child: CircleAvatar(
+                                radius: 30,
+                                backgroundColor: AppColors.primary,
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.lg),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayName,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    email,
+                                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      "PATIENT VERIFIED",
+                                      style: TextStyle(color: AppColors.secondary, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.white10, height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Column(
+                              children: [
+                                Text(
+                                  "$allergiesCount",
+                                  style: TextStyle(
+                                    color: allergiesCount > 0 ? AppColors.danger : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  "Drug Allergies",
+                                  style: TextStyle(color: AppColors.textDisabled, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                            Container(width: 1, height: 24, color: Colors.white10),
+                            Column(
+                              children: [
+                                Text(
+                                  "$activeMedsCount",
+                                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  "Active Meds",
+                                  style: TextStyle(color: AppColors.textDisabled, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                            Container(width: 1, height: 24, color: Colors.white10),
+                            Column(
+                              children: [
+                                const Text(
+                                  "O+",
+                                  style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  "Blood Group",
+                                  style: TextStyle(color: AppColors.textDisabled, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: AppSpacing.xl),
               
@@ -1145,13 +1209,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
               const SizedBox(height: AppSpacing.sm),
-              _buildSettingTile(Icons.medical_services_rounded, "Personal Health Record", "Blood group, conditions, and diagnoses"),
+              _buildSettingTile(
+                Icons.medical_services_rounded,
+                "Personal Health Record",
+                "Manage drug allergies, active meds, and safety profile",
+                onTap: () => _showPersonalHealthRecordModal(context),
+              ),
               const SizedBox(height: AppSpacing.sm),
-              _buildSettingTile(Icons.devices_rounded, "Connected Devices", "Smart pillbox, monitors, and sensors"),
+              _buildSettingTile(
+                Icons.devices_rounded,
+                "Connected Devices",
+                "Smart pillbox, monitors, and Bluetooth status",
+                onTap: () => _showConnectedDevicesModal(context),
+              ),
               const SizedBox(height: AppSpacing.sm),
-              _buildSettingTile(Icons.history_rounded, "Prescription History", "Access scanned database history"),
+              _buildSettingTile(
+                Icons.history_rounded,
+                "Prescription History",
+                "Access scanned database history & verified Rx records",
+                onTap: () => _showPrescriptionHistoryModal(context),
+              ),
               const SizedBox(height: AppSpacing.sm),
-              _buildSettingTile(Icons.settings_rounded, "Account Preferences", "System styling, dark mode, language"),
+              _buildSettingTile(
+                Icons.settings_rounded,
+                "Account Preferences",
+                "System styling, notifications, dark mode, language",
+                onTap: () => _showAccountPreferencesModal(context),
+              ),
               
               const SizedBox(height: AppSpacing.xxl),
               
@@ -1169,6 +1253,433 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // --- PROFILE MODAL HANDLERS ---
+  void _showPersonalHealthRecordModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.75,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          builder: (context, scrollController) {
+            return Consumer<PatientProfileProvider>(
+              builder: (context, provider, child) {
+                final allergies = provider.allergies;
+                final activeMeds = provider.activeMedications;
+
+                return ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Personal Health Record",
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Allergies Section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "KNOWN DRUG ALLERGIES",
+                          style: TextStyle(color: AppColors.textDisabled, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _showAddAllergyDialog(context),
+                          icon: const Icon(Icons.add, size: 14, color: AppColors.primary),
+                          label: const Text("Add Allergy", style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    if (allergies.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          "No drug allergies logged. Tap 'Add Allergy' if you have known medication reactions.",
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: allergies.map((a) {
+                          final int id = a['allergyId'] ?? 0;
+                          final String name = a['allergenName'] ?? 'Unknown';
+                          final String severity = a['severity'] ?? 'HIGH';
+                          final Color sevColor = severity == 'HIGH' ? AppColors.danger : Colors.orangeAccent;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.card.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: sevColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, color: sevColor, size: 18),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      name,
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: sevColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        severity,
+                                        style: TextStyle(color: sevColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 18),
+                                      onPressed: () => provider.deleteAllergy(id),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                    const SizedBox(height: 20),
+
+                    // Active Medications Section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "CURRENT ACTIVE MEDICATIONS",
+                          style: TextStyle(color: AppColors.textDisabled, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    if (activeMeds.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          "No active medications currently registered.",
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: activeMeds.map((m) {
+                          final int id = m['medicationId'] ?? 0;
+                          final String name = m['medicineName'] ?? '';
+                          final String strength = m['strength'] ?? '';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.card.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.medication_rounded, color: AppColors.primary, size: 18),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      "$name $strength",
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.white38, size: 18),
+                                  onPressed: () => provider.deleteMedication(id),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddAllergyDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    String severity = "HIGH";
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: const Text("Add Drug Allergy", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: "Allergen Name (e.g. Penicillin, Aspirin)",
+                  labelStyle: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: severity,
+                dropdownColor: const Color(0xFF1E293B),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(labelText: "Severity Level"),
+                items: const [
+                  DropdownMenuItem(value: "HIGH", child: Text("HIGH (Severe Reaction)")),
+                  DropdownMenuItem(value: "MEDIUM", child: Text("MEDIUM (Moderate Rash)")),
+                  DropdownMenuItem(value: "LOW", child: Text("LOW (Mild Sensitivity)")),
+                ],
+                onChanged: (val) {
+                  if (val != null) severity = val;
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isNotEmpty) {
+                  await context.read<PatientProfileProvider>().addAllergy(
+                    allergenName: nameCtrl.text.trim(),
+                    severity: severity,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+              child: const Text("Add"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showConnectedDevicesModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.bluetooth_connected_rounded, color: AppColors.secondary, size: 48),
+              const SizedBox(height: 12),
+              const Text("MediSync Smart Pillbox", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text("Connected via Bluetooth LE 5.0 • Battery: 88%", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppColors.card.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(12)),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Auto Dose Dispenser", style: TextStyle(color: Colors.white, fontSize: 13)),
+                    Text("ONLINE", style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 45)),
+                child: const Text("Close"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPrescriptionHistoryModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          builder: (context, scrollController) {
+            return Consumer<PrescriptionProvider>(
+              builder: (context, provider, child) {
+                final list = provider.prescriptionSummaries;
+
+                return ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: [
+                    const Text("Prescription Database History", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    const Text("Scanned OCR database records", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    const SizedBox(height: 16),
+                    if (list.isEmpty)
+                      const Center(child: Padding(padding: EdgeInsets.all(24), child: Text("No scanned prescriptions found.", style: TextStyle(color: Colors.white54))))
+                    else
+                      Column(
+                        children: list.map((item) {
+                          final String rxId = "Rx #${item.prescriptionId}";
+                          final String date = item.readableUploadedAt;
+                          final String status = item.status.isNotEmpty ? item.status : 'VERIFIED';
+                          final int medCount = item.medicinesFound;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.card.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(rxId, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                    const SizedBox(height: 2),
+                                    Text("$date • $medCount Medicines Found", style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(status, style: const TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAccountPreferencesModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Account Preferences", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.dark_mode_rounded, color: AppColors.primary),
+                title: const Text("Dark Glassmorphism Theme", style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: const Text("ENABLED", style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_rounded, color: AppColors.secondary),
+                title: const Text("Push Alarms & Reminders", style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: const Text("ACTIVE", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 11)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.language_rounded, color: Colors.purpleAccent),
+                title: const Text("System Language", style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: const Text("English (US)", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 45)),
+                child: const Text("Done"),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
