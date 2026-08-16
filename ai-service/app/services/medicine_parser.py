@@ -92,8 +92,8 @@ FREQUENCY_PATTERNS = [
 
 # Prefixes/headers to skip
 SKIP_PREFIXES = (
-    "date", "name", "patient", "doctor", "dr", "dr.", "rx", "prescription",
-    "address", "phone", "tel", "tel:", "age", "sex", "gender", "hospital",
+    "date", "name", "patient", "doctor", "dr", "dr.", "rx", "ex", "bx", "dx", "tx", "px",
+    "prescription", "address", "phone", "tel", "tel:", "age", "sex", "gender", "hospital",
     "clinic", "signature", "refill", "diagnosis", "weight", "height",
     "note", "note:", "reg", "reg.", "mbbs", "slmc", "street", "road",
     "colombo", "lanka", "city", "town", "no:", "no.", "sig", "sig:", "sig.",

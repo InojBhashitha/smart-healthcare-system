@@ -140,6 +140,12 @@ class MedicineMatcher:
             }
 
         clean_name = name.lower().strip()
+        if len(clean_name) < 3:
+            return {
+                "matched_generic_name": None,
+                "matched_brand_name": None,
+                "confidence": 0.0,
+            }
 
         # Check exact brand map first
         if clean_name in BRAND_GENERIC_MAP:
@@ -173,6 +179,17 @@ class MedicineMatcher:
             result = ts_res
 
         if result is None:
+            return {
+                "matched_generic_name": None,
+                "matched_brand_name": None,
+                "confidence": 0.0,
+            }
+
+        matched_name, score, _ = result
+
+        # Length ratio penalty: Prevent short noise strings from matching long drugs via substring
+        len_ratio = min(len(clean_name), len(matched_name)) / max(len(clean_name), len(matched_name))
+        if len_ratio < 0.45 and len(clean_name) < 5:
             return {
                 "matched_generic_name": None,
                 "matched_brand_name": None,
