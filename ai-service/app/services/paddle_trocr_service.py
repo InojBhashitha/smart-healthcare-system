@@ -115,21 +115,25 @@ class PaddleTrocrPipeline:
             return ""
 
     def process_prescription(self, image: np.ndarray) -> str:
-        """End-to-end pipeline: Preprocess -> Tesseract 5 + TrOCR Line Recognition."""
+        """End-to-end pipeline: 2x Rescale -> Tesseract 5 + TrOCR Line Recognition."""
         if not self._loaded:
             self.load_models()
 
-        # 1. Tesseract 5 full document extraction (reliable, no hallucinations)
+        # Rescale up to 2x for OCR character clarity
+        h, w = image.shape[:2]
+        scaled = cv2.resize(image, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
+
+        # 1. Tesseract 5 full document extraction
         import pytesseract
         from PIL import Image as PILImage
 
         tess_lines: list[str] = []
         try:
-            pil_img = PILImage.fromarray(image)
+            pil_img = PILImage.fromarray(scaled)
             tess_raw = pytesseract.image_to_string(pil_img, config="--psm 6").strip()
             for line in tess_raw.split("\n"):
                 line = line.strip()
-                if line and len(line) >= 2 and self._is_valid_text_line(line):
+                if line and len(line) >= 2:
                     tess_lines.append(line)
         except Exception as e:
             logger.warning("Tesseract 5 extraction error: %s", e)
