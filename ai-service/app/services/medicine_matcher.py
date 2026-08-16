@@ -37,6 +37,8 @@ BRAND_GENERIC_MAP = {
     "uriguard": ("Flavoxate", "Uriguard"),
     "pronaz": ("Lansoprazole", "Pronaz"),
     "movax": ("Tizanidine", "Movax"),
+    "himox": ("Amoxicillin", "Himox"),
+    "ethmiox": ("Amoxicillin", "Himox"),
     "breaky": ("Breaky", "Breaky"),
     "bisleri": ("Bisleri", "Bisleri"),
 }
