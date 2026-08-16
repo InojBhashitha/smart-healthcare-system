@@ -6,6 +6,8 @@ public class MedicineInfo {
     private String strength;
     private String instruction;
     private double confidence;
+    private String matchedGenericName;
+    private String matchedBrandName;
 
     public MedicineInfo() {
     }
@@ -22,6 +24,15 @@ public class MedicineInfo {
         this.strength = strength;
         this.instruction = instruction;
         this.confidence = confidence;
+    }
+
+    public MedicineInfo(String name, String strength, String instruction, double confidence, String matchedGenericName, String matchedBrandName) {
+        this.name = name;
+        this.strength = strength;
+        this.instruction = instruction;
+        this.confidence = confidence;
+        this.matchedGenericName = matchedGenericName;
+        this.matchedBrandName = matchedBrandName;
     }
 
     public String getName() {
@@ -54,5 +65,21 @@ public class MedicineInfo {
 
     public void setConfidence(double confidence) {
         this.confidence = confidence;
+    }
+
+    public String getMatchedGenericName() {
+        return matchedGenericName;
+    }
+
+    public void setMatchedGenericName(String matchedGenericName) {
+        this.matchedGenericName = matchedGenericName;
+    }
+
+    public String getMatchedBrandName() {
+        return matchedBrandName;
+    }
+
+    public void setMatchedBrandName(String matchedBrandName) {
+        this.matchedBrandName = matchedBrandName;
     }
 }

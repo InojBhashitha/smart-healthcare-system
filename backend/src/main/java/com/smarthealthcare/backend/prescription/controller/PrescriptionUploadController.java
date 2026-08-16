@@ -74,7 +74,9 @@ public class PrescriptionUploadController {
                                 m.getName(),
                                 m.getStrength(),
                                 m.getInstruction(),
-                                m.getConfidence()
+                                m.getConfidence(),
+                                m.getMatchedGenericName(),
+                                m.getMatchedBrandName()
                         ));
                     }
                 }

@@ -43,10 +43,17 @@ public class PrescriptionMedicineService {
             medicine.setInstruction(medicineInfo.getInstruction());
             medicine.setVerified(false);
 
-            // Check if medicine exists in master database
-            Medicine matchedMedicine =
-                    validationService.findMatchingMedicine(
-                            medicineInfo.getName());
+            // Check if medicine exists in master database using AI-matched generic/brand names first
+            Medicine matchedMedicine = null;
+            if (medicineInfo.getMatchedBrandName() != null) {
+                matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedBrandName());
+            }
+            if (matchedMedicine == null && medicineInfo.getMatchedGenericName() != null) {
+                matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedGenericName());
+            }
+            if (matchedMedicine == null) {
+                matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getName());
+            }
 
             // Save relationship if found
             medicine.setMedicine(matchedMedicine);
