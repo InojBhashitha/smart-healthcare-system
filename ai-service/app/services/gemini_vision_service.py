@@ -74,7 +74,7 @@ class GeminiVisionService:
         return bool(api_key)
 
     def extract_prescription(self, image: np.ndarray) -> dict | None:
-        """Extract structured prescription data from image numpy array using Gemini Vision."""
+        """Extract structured prescription data from image numpy array using Gemini Vision with model fallback."""
         if not self._client:
             self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("API_KEY")
             if self.api_key:
@@ -82,6 +82,14 @@ class GeminiVisionService:
 
         if not self._client:
             return None
+
+        # Multi-model pool to handle temporary 503 (high demand) or rate-limit failovers
+        model_candidates = [
+            "gemini-3.1-flash-lite",
+            "gemini-flash-latest",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash",
+        ]
 
         try:
             # Convert OpenCV BGR image to PIL RGB Image
@@ -91,24 +99,35 @@ class GeminiVisionService:
                 rgb = image
             pil_image = Image.fromarray(rgb)
 
-            logger.info("Calling Gemini Vision API (gemini-3.7-flash) for prescription extraction...")
-            response = self._client.models.generate_content(
-                model="gemini-3.7-flash",
-                contents=[EXTRACTION_PROMPT, pil_image],
-            )
+            last_error = None
+            for model_name in model_candidates:
+                try:
+                    logger.info("Calling Gemini Vision API with model: %s ...", model_name)
+                    response = self._client.models.generate_content(
+                        model=model_name,
+                        contents=[EXTRACTION_PROMPT, pil_image],
+                    )
 
-            response_text = response.text.strip()
-            # Clean possible markdown formatting
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
+                    response_text = response.text.strip()
+                    # Clean possible markdown formatting
+                    if response_text.startswith("```json"):
+                        response_text = response_text[7:]
+                    if response_text.startswith("```"):
+                        response_text = response_text[3:]
+                    if response_text.endswith("```"):
+                        response_text = response_text[:-3]
 
-            data = json.loads(response_text.strip())
-            logger.info("Gemini Vision extracted %d medicines successfully.", len(data.get("medicines", [])))
-            return data
+                    data = json.loads(response_text.strip())
+                    logger.info("Gemini Vision (%s) extracted %d medicines successfully.", model_name, len(data.get("medicines", [])))
+                    return data
+
+                except Exception as model_err:
+                    logger.warning("Model %s failed: %s. Trying next model...", model_name, model_err)
+                    last_error = model_err
+                    continue
+
+            logger.error("All Gemini Vision model candidates exhausted. Last error: %s", last_error)
+            return None
 
         except Exception as e:
             logger.error("Gemini Vision extraction error: %s", e)
