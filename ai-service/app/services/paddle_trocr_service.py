@@ -136,8 +136,8 @@ class PaddleTrocrPipeline:
             text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
             text = text.strip()
 
-            # Filter hallucinated phrases and repetitive loops
-            if self._is_hallucination(text) or self._has_repetition_loop(text):
+            # Filter hallucinated phrases, repetitive loops, and invalid number noise
+            if self._is_hallucination(text) or self._has_repetition_loop(text) or not self._is_valid_text_line(text):
                 return ""
 
             return text
@@ -173,10 +173,24 @@ class PaddleTrocrPipeline:
             "makati city", "maximum long letter", "sing- recap", "exonday",
             "successful success", "today . june", "delayed to", "delegates",
             "documented", "legend", "market", "application", "chronicling",
-            "unsigned's", "russo"
+            "unsigned's", "russo", "quality history", "common people",
+            "first appearance", "in his own", "sipoal"
         ]
         lower = text.lower()
         return any(ph in lower for ph in hallucinations)
+
+    def _is_valid_text_line(self, text: str) -> bool:
+        """Check if extracted text is a genuine prescription text line (not noise like '0 0', '0 1', '0-000')."""
+        text = text.strip()
+        if not text or len(text) < 3:
+            return False
+
+        # Require at least 3 alphabetic letters
+        letters = [c for c in text if c.isalpha()]
+        if len(letters) < 3:
+            return False
+
+        return True
 
     def _is_blank_or_noise(self, line_crop: np.ndarray) -> bool:
         """Check if a crop is completely blank white background without ink."""
