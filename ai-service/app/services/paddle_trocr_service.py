@@ -78,22 +78,23 @@ class PaddleTrocrPipeline:
 
         if self.paddle_ocr is not None:
             try:
-                # PaddleOCR returns list of detected boxes: [[[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], score], ...]
-                results = self.paddle_ocr.ocr(image, det=True, rec=False)
+                # PaddleOCR API call for box detection
+                results = self.paddle_ocr.ocr(image)
                 boxes = []
 
                 if results and results[0]:
-                    for box in results[0]:
-                        pts = np.array(box, dtype=np.int32)
-                        x_min = max(0, np.min(pts[:, 0]) - 4)
-                        x_max = min(w, np.max(pts[:, 0]) + 4)
-                        y_min = max(0, np.min(pts[:, 1]) - 4)
-                        y_max = min(h, np.max(pts[:, 1]) + 4)
-                        box_h = y_max - y_min
-                        box_w = x_max - x_min
+                    for item in results[0]:
+                        if isinstance(item, (list, tuple)) and len(item) >= 1:
+                            pts = np.array(item[0], dtype=np.int32)
+                            x_min = max(0, np.min(pts[:, 0]) - 4)
+                            x_max = min(w, np.max(pts[:, 0]) + 4)
+                            y_min = max(0, np.min(pts[:, 1]) - 4)
+                            y_max = min(h, np.max(pts[:, 1]) + 4)
+                            box_h = y_max - y_min
+                            box_w = x_max - x_min
 
-                        if box_h >= 12 and box_w >= 15:
-                            boxes.append((y_min, y_max, x_min, x_max))
+                            if box_h >= 12 and box_w >= 15:
+                                boxes.append((y_min, y_max, x_min, x_max))
 
                 # Sort boxes top-to-bottom by y_min coordinate
                 boxes.sort(key=lambda b: b[0])
@@ -107,7 +108,7 @@ class PaddleTrocrPipeline:
                     return line_crops
 
             except Exception as e:
-                logger.warning("PaddleOCR text detection error: %s. Using fallback line segmenter.", e)
+                logger.warning("PaddleOCR text detection skipped (%s). Using contour line segmenter.", e)
 
         # Fallback projection-based line segmenter if PaddleOCR yields 0 crops
         return self._fallback_line_segmenter(image)
@@ -121,13 +122,19 @@ class PaddleTrocrPipeline:
             pil_img = Image.fromarray(line_crop).convert("RGB")
             pixel_values = self.processor(images=pil_img, return_tensors="pt").pixel_values
 
-            # Generate TrOCR tokens
-            generated_ids = self.trocr_model.generate(pixel_values, max_new_tokens=64)
+            # Generate TrOCR tokens with repetition penalty to eliminate repeating loops
+            generated_ids = self.trocr_model.generate(
+                pixel_values,
+                max_new_tokens=48,
+                no_repeat_ngram_size=3,
+                repetition_penalty=1.2,
+                early_stopping=True,
+            )
             text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
             text = text.strip()
 
-            # Filter hallucinated phrases
-            if self._is_hallucination(text):
+            # Filter hallucinated phrases and repetitive loops
+            if self._is_hallucination(text) or self._has_repetition_loop(text):
                 return ""
 
             return text
@@ -163,6 +170,18 @@ class PaddleTrocrPipeline:
         ]
         lower = text.lower()
         return any(ph in lower for ph in hallucinations)
+
+    def _has_repetition_loop(self, text: str) -> bool:
+        """Detect if TrOCR autoregressive generation entered a repetitive loop (e.g. 'ever ever ever')."""
+        words = text.lower().split()
+        if not words:
+            return False
+        from collections import Counter
+        counts = Counter(words)
+        for w, c in counts.items():
+            if len(w) >= 3 and c >= 3:  # Word of length 3+ repeated 3+ times in single line
+                return True
+        return False
 
     def _fallback_line_segmenter(self, image: np.ndarray) -> list[np.ndarray]:
         """Fallback horizontal projection line segmenter."""
