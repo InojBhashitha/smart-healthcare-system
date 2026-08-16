@@ -7,19 +7,25 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     
     const fetchDashboard = async () => {
+      setApiError(null);
       try {
         const result = await dashboardService.getDashboardData();
         if (active) {
           setData(result);
           setLoading(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load dashboard data:', err);
+        if (active) {
+          setApiError(err.message || 'Failed to load dashboard data.');
+          setLoading(false);
+        }
       }
     };
 
@@ -32,6 +38,33 @@ export const Dashboard: React.FC = () => {
   const navigateToStock = () => {
     window.location.hash = '#/stock';
   };
+
+  if (apiError && !data) {
+    return (
+      <div className="dashboard-page">
+        <header className="dashboard-header">
+          <h1 className="welcome-title">Good Morning, {user?.name || 'Pharmacy Central'}</h1>
+        </header>
+        <div style={{
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fee2e2',
+          borderRadius: '6px',
+          color: '#991b1b',
+          padding: '16px',
+          marginTop: '20px',
+          fontSize: '14px',
+          textAlign: 'center'
+        }}>
+          <strong>Error loading dashboard:</strong> {apiError}
+          <div style={{ marginTop: '12px' }}>
+            <button onClick={() => { setLoading(true); window.location.reload(); }} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '13px' }}>
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return (
@@ -59,15 +92,20 @@ export const Dashboard: React.FC = () => {
 
   const circ = 2 * Math.PI * 50; // Radius = 50, Circ = 314.159
 
-  // Proportions
-  const inStockLen = (inStock / total) * circ;
-  const lowStockLen = (lowStock / total) * circ;
-  const outStockLen = (outOfStock / total) * circ;
+  // Proportions with safety division guards
+  const totalVal = total || 1;
+  const inStockLen = (inStock / totalVal) * circ;
+  const lowStockLen = (lowStock / totalVal) * circ;
+  const outStockLen = (outOfStock / totalVal) * circ;
 
   // Offsets
   const inStockOffset = 0;
   const lowStockOffset = -inStockLen;
   const outStockOffset = -(inStockLen + lowStockLen);
+
+  const inStockPct = total > 0 ? Math.round((inStock / total) * 100) : 0;
+  const lowStockPct = total > 0 ? Math.round((lowStock / total) * 100) : 0;
+  const outOfStockPct = total > 0 ? Math.round((outOfStock / total) * 100) : 0;
 
   return (
     <div className="dashboard-page">
@@ -197,21 +235,21 @@ export const Dashboard: React.FC = () => {
                   <div className="legend-color" style={{ backgroundColor: '#10b981' }} />
                   <div className="legend-info">
                     <span className="legend-name">In Stock</span>
-                    <span className="legend-value">{inStock} ({Math.round((inStock / total) * 100)}%)</span>
+                    <span className="legend-value">{inStock} ({inStockPct}%)</span>
                   </div>
                 </div>
                 <div className="legend-item">
                   <div className="legend-color" style={{ backgroundColor: '#f59e0b' }} />
                   <div className="legend-info">
                     <span className="legend-name">Low Stock</span>
-                    <span className="legend-value">{lowStock} ({Math.round((lowStock / total) * 100)}%)</span>
+                    <span className="legend-value">{lowStock} ({lowStockPct}%)</span>
                   </div>
                 </div>
                 <div className="legend-item">
                   <div className="legend-color" style={{ backgroundColor: '#ef4444' }} />
                   <div className="legend-info">
                     <span className="legend-name">Out of Stock</span>
-                    <span className="legend-value">{outOfStock} ({Math.round((outOfStock / total) * 100)}%)</span>
+                    <span className="legend-value">{outOfStock} ({outOfStockPct}%)</span>
                   </div>
                 </div>
               </div>
