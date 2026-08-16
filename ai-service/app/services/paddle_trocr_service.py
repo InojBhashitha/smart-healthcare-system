@@ -53,7 +53,7 @@ class PaddleTrocrPipeline:
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """Preprocess prescription image for optimal text detection and OCR.
 
-        Scales small camera uploads to 1400px and applies CLAHE contrast.
+        Scales small camera uploads to 1400px, removes camera shadows, and applies CLAHE contrast.
         """
         h, w = image.shape[:2]
         max_dim = max(h, w)
@@ -69,9 +69,13 @@ class PaddleTrocrPipeline:
         else:
             gray = image.copy()
 
+        # Illumination Normalization: Remove uneven mobile camera shadows
+        bg = cv2.morphologyEx(gray, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (21, 21)))
+        norm = cv2.divide(gray, bg, scale=255)
+
         # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-        enhanced = clahe.apply(gray)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(norm)
 
         # Convert back to RGB for TrOCR input compatibility
         enhanced_rgb = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2RGB)
