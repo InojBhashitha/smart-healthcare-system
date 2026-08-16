@@ -165,7 +165,7 @@ class PaddleTrocrPipeline:
         return True
 
     def _is_blank_or_noise(self, line_crop: np.ndarray) -> bool:
-        """Check if a crop is completely blank white background without ink."""
+        """Check if a crop is completely empty background without pixels."""
         if line_crop is None or line_crop.size == 0:
             return True
         if len(line_crop.shape) == 3:
@@ -173,18 +173,8 @@ class PaddleTrocrPipeline:
         else:
             gray = line_crop.copy()
 
-        # Check standard deviation / contrast variance
         std_dev = float(np.std(gray))
-        if std_dev < 4.0:
-            return True
-
-        # Check foreground ink pixel ratio
-        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        ink_ratio = np.sum(binary > 0) / binary.size
-        if ink_ratio < 0.005 or ink_ratio > 0.95:
-            return True
-
-        return False
+        return std_dev < 2.0
 
     def _has_repetition_loop(self, text: str) -> bool:
         """Detect if TrOCR autoregressive generation entered a repetitive loop (e.g. 'ever ever ever')."""
