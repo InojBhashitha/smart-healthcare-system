@@ -54,11 +54,11 @@ public class PrescriptionMedicineService {
             // Link to master PostgreSQL drug entity ONLY if AI confidence >= 70.0%
             Medicine matchedMedicine = null;
             if (confidence >= 70.0) {
-                if (medicineInfo.getMatchedBrandName() != null) {
-                    matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedBrandName());
-                }
-                if (matchedMedicine == null && medicineInfo.getMatchedGenericName() != null) {
+                if (medicineInfo.getMatchedGenericName() != null) {
                     matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedGenericName());
+                }
+                if (matchedMedicine == null && medicineInfo.getMatchedBrandName() != null) {
+                    matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedBrandName());
                 }
                 if (matchedMedicine == null) {
                     matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getName());

@@ -38,18 +38,13 @@ BRAND_GENERIC_MAP = {
     "pronaz": ("Lansoprazole", "Pronaz"),
     "movax": ("Tizanidine", "Movax"),
     "himox": ("Amoxicillin", "Himox"),
-    "ethmiox": ("Amoxicillin", "Himox"),
-    "unoyrebin": ("Amoxicillin", "Himox"),
-    "wows": ("Amoxicillin", "Himox"),
-    "amaxmillin": ("Amoxicillin", "Himox"),
-    "amoxcillin": ("Amoxicillin", "Himox"),
+    "amoxil": ("Amoxicillin", "Amoxil"),
     "augmentin": ("Amoxicillin and Clavulanic Acid", "Augmentin"),
     "enzoflam": ("Paracetamol + Diclofenac + Serratiopeptidase", "Enzoflam"),
     "pand": ("Pantoprazole + Domperidone", "Pan-D"),
     "pan-d": ("Pantoprazole + Domperidone", "Pan-D"),
     "hexigel": ("Chlorhexidine Gluconate", "Hexigel"),
     "breaky": ("Breaky", "Breaky"),
-    "bisleri": ("Bisleri", "Bisleri"),
 }
 
 
@@ -130,9 +125,9 @@ class MedicineMatcher:
             })
 
     def match(self, name: str) -> dict:
-        """Find best matching medicine for a given name using RapidFuzz.
+        """Find best matching medicine for a given name using RapidFuzz multi-scorer matching.
 
-        Handles typos:
+        Handles typos and variations:
             "Amoxcillin" -> "Amoxicillin"
             "Panadoi" -> "Panadol"
             "Azimax" -> "Azimax (Azithromycin)"
@@ -155,13 +150,27 @@ class MedicineMatcher:
                 "confidence": 100.0,
             }
 
-        # RapidFuzz weighted ratio match (threshold 70.0 for reliable drug database match)
-        result = process.extractOne(
+        # Multi-scorer RapidFuzz matching (WRatio + token_set_ratio)
+        w_res = process.extractOne(
             clean_name,
             self._name_list,
             scorer=fuzz.WRatio,
             score_cutoff=70.0,
         )
+        ts_res = process.extractOne(
+            clean_name,
+            self._name_list,
+            scorer=fuzz.token_set_ratio,
+            score_cutoff=70.0,
+        )
+
+        result = None
+        if w_res and ts_res:
+            result = w_res if w_res[1] >= ts_res[1] else ts_res
+        elif w_res:
+            result = w_res
+        elif ts_res:
+            result = ts_res
 
         if result is None:
             return {

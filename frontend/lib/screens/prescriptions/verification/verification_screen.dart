@@ -246,8 +246,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final genericSub = hasMatch && dbMed.genericName.isNotEmpty ? "Generic: ${dbMed.genericName}" : null;
 
     // Calculate match confidence display percentage
-    final confidenceScore = med.confidence > 0.0 ? med.confidence : (hasMatch ? 90.0 : (med.verified ? 100.0 : 65.0));
-    final isHighConfidence = confidenceScore >= 80.0;
+    final confidenceScore = med.confidence;
+    final isVerified = med.verified;
+    final isHighConfidence = confidenceScore >= 70.0 || hasMatch;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -255,7 +256,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: (med.verified || hasMatch) ? AppColors.primary.withValues(alpha: 0.5) : Colors.white10,
+          color: isVerified
+              ? AppColors.primary.withValues(alpha: 0.6)
+              : (isHighConfidence ? Colors.greenAccent.withValues(alpha: 0.4) : Colors.amberAccent.withValues(alpha: 0.3)),
         ),
       ),
       child: Column(
@@ -267,10 +270,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
+                  color: isHighConfidence ? AppColors.primary.withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.medication_rounded, color: AppColors.primary),
+                child: Icon(
+                  Icons.medication_rounded,
+                  color: isHighConfidence ? AppColors.primary : Colors.amberAccent,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -293,29 +299,43 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isHighConfidence
-                                ? Colors.greenAccent.withValues(alpha: 0.15)
-                                : Colors.orangeAccent.withValues(alpha: 0.15),
+                            color: isVerified
+                                ? AppColors.primary.withValues(alpha: 0.2)
+                                : (isHighConfidence
+                                    ? Colors.greenAccent.withValues(alpha: 0.15)
+                                    : Colors.amberAccent.withValues(alpha: 0.15)),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: isHighConfidence
-                                  ? Colors.greenAccent.withValues(alpha: 0.4)
-                                  : Colors.orangeAccent.withValues(alpha: 0.4),
+                              color: isVerified
+                                  ? AppColors.primary.withValues(alpha: 0.5)
+                                  : (isHighConfidence
+                                      ? Colors.greenAccent.withValues(alpha: 0.4)
+                                      : Colors.amberAccent.withValues(alpha: 0.4)),
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                isHighConfidence ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-                                color: isHighConfidence ? Colors.greenAccent : Colors.orangeAccent,
+                                isVerified
+                                    ? Icons.verified_rounded
+                                    : (isHighConfidence ? Icons.check_circle_rounded : Icons.warning_amber_rounded),
+                                color: isVerified
+                                    ? AppColors.primary
+                                    : (isHighConfidence ? Colors.greenAccent : Colors.amberAccent),
                                 size: 12,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                "${confidenceScore.toStringAsFixed(1)}% Match",
+                                isVerified
+                                    ? "Verified"
+                                    : (isHighConfidence
+                                        ? "${confidenceScore > 0 ? confidenceScore.toStringAsFixed(1) : '90.0'}% Match"
+                                        : "Review Raw OCR"),
                                 style: TextStyle(
-                                  color: isHighConfidence ? Colors.greenAccent : Colors.orangeAccent,
+                                    color: isVerified
+                                        ? AppColors.primary
+                                        : (isHighConfidence ? Colors.greenAccent : Colors.amberAccent),
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),

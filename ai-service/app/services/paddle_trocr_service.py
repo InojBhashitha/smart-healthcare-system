@@ -148,9 +148,21 @@ class PaddleTrocrPipeline:
             if line_str and len(line_str) >= 2 and not self._is_hallucination(line_str):
                 trocr_lines.append(line_str)
 
-        all_lines = tess_lines + trocr_lines
-        full_text = "\n".join(all_lines).strip()
-        logger.info("OCR pipeline extracted %d lines of text (Tess: %d, TrOCR: %d).", len(all_lines), len(tess_lines), len(trocr_lines))
+        # Smart deduplication: Add TrOCR lines only if they are not duplicates of Tesseract lines
+        from rapidfuzz import fuzz
+
+        combined_lines = list(tess_lines)
+        for tr_line in trocr_lines:
+            is_dup = False
+            for tess_l in tess_lines:
+                if fuzz.ratio(tr_line.lower(), tess_l.lower()) > 75.0:
+                    is_dup = True
+                    break
+            if not is_dup:
+                combined_lines.append(tr_line)
+
+        full_text = "\n".join(combined_lines).strip()
+        logger.info("OCR pipeline extracted %d unique lines of text (Tess: %d, TrOCR added: %d).", len(combined_lines), len(tess_lines), len(combined_lines) - len(tess_lines))
         return full_text
 
     def _is_hallucination(self, text: str) -> bool:

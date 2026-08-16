@@ -94,9 +94,10 @@ async def process_prescription(
         has_strength = bool(entry.get("strength"))
         has_dosage_form = bool(entry.get("dosage_form"))
 
-        # Drop candidate entries without dosage strength if confidence is <= 75.0% or matched from prose words
-        if not has_strength and (conf <= 75.0 or name.lower() in ["million", "spoken", "mittled", "discussiblement"]):
-            logger.info("Dropping low-confidence noise candidate: %s (Conf: %.1f%%)", name, conf)
+        # Generalized medical validation: Retain if matched drug (>=70%), or has valid strength/form
+        is_valid_med = (conf >= 70.0) or has_strength or has_dosage_form
+        if not is_valid_med:
+            logger.info("Dropping non-medical noise candidate: %s (Conf: %.1f%%)", name, conf)
             continue
 
         medicines.append(
