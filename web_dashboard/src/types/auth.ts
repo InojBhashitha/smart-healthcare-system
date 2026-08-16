@@ -1,8 +1,9 @@
 export interface User {
-  id: string;
+  userId: number;
   email: string;
   name: string;
-  role: 'pharmacy';
+  role: string;
+  pharmacyId: number | null;
 }
 
 export interface AuthState {
