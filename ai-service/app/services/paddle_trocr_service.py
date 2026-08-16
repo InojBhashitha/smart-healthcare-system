@@ -82,48 +82,7 @@ class PaddleTrocrPipeline:
         return enhanced_rgb
 
     def detect_line_crops(self, image: np.ndarray) -> list[np.ndarray]:
-        """Detect text bounding regions/lines using PaddleOCR PP-OCRv5.
-
-        Fallback to contour/projection-based segmentation if PaddleOCR returns no boxes.
-        """
-        line_crops: list[np.ndarray] = []
-        h, w = image.shape[:2]
-
-        if self.paddle_ocr is not None:
-            try:
-                # PaddleOCR API call for box detection
-                results = self.paddle_ocr.ocr(image)
-                boxes = []
-
-                if results and results[0]:
-                    for item in results[0]:
-                        if isinstance(item, (list, tuple)) and len(item) >= 1:
-                            pts = np.array(item[0], dtype=np.int32)
-                            x_min = max(0, np.min(pts[:, 0]) - 4)
-                            x_max = min(w, np.max(pts[:, 0]) + 4)
-                            y_min = max(0, np.min(pts[:, 1]) - 4)
-                            y_max = min(h, np.max(pts[:, 1]) + 4)
-                            box_h = y_max - y_min
-                            box_w = x_max - x_min
-
-                            if box_h >= 12 and box_w >= 15:
-                                boxes.append((y_min, y_max, x_min, x_max))
-
-                # Sort boxes top-to-bottom by y_min coordinate
-                boxes.sort(key=lambda b: b[0])
-
-                for y_min, y_max, x_min, x_max in boxes:
-                    crop = image[y_min:y_max, x_min:x_max]
-                    line_crops.append(crop)
-
-                if line_crops:
-                    logger.info("PaddleOCR detected %d text line regions.", len(line_crops))
-                    return line_crops
-
-            except Exception as e:
-                logger.warning("PaddleOCR text detection skipped (%s). Using contour line segmenter.", e)
-
-        # Fallback projection-based line segmenter if PaddleOCR yields 0 crops
+        """Detect text bounding regions/lines using high-precision OpenCV morphological segmenter."""
         return self._fallback_line_segmenter(image)
 
     def recognize_line(self, line_crop: np.ndarray) -> str:
@@ -240,7 +199,7 @@ class PaddleTrocrPipeline:
         return False
 
     def _fallback_line_segmenter(self, image: np.ndarray) -> list[np.ndarray]:
-        """Morphological contour line segmenter designed for prescription handwriting."""
+        """Morphological contour line segmenter with vertical overlap merging."""
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         else:
@@ -248,18 +207,20 @@ class PaddleTrocrPipeline:
 
         h_img, w_img = image.shape[:2]
 
-        # Ignore outer 4% margin to skip camera scanner frame lines
-        y_start = int(h_img * 0.04)
-        y_end = int(h_img * 0.96)
-        x_start = int(w_img * 0.04)
-        x_end = int(w_img * 0.96)
+        # Ignore outer 3% margin to skip camera scanner frame lines
+        y_start = int(h_img * 0.03)
+        y_end = int(h_img * 0.97)
+        x_start = int(w_img * 0.03)
+        x_end = int(w_img * 0.97)
 
         inner = gray[y_start:y_end, x_start:x_end]
         inner_img = image[y_start:y_end, x_start:x_end]
 
-        # Otsu Binarization directly on single-pass preprocessed grayscale
-        _, binary = cv2.threshold(inner, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (40, 5))
+        # Adaptive Gaussian Thresholding to prevent contrast washout
+        binary = cv2.adaptiveThreshold(
+            inner, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 10
+        )
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (45, 6))
         dilated = cv2.dilate(binary, kernel, iterations=2)
 
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -267,10 +228,9 @@ class PaddleTrocrPipeline:
         boxes = []
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
-            # Filter valid handwritten line dimensions
-            if w >= 35 and 12 <= h <= 180:
-                y1 = max(0, y - 5)
-                y2 = min(inner.shape[0], y + h + 5)
+            if w >= 25 and 10 <= h <= 180:
+                y1 = max(0, y - 4)
+                y2 = min(inner.shape[0], y + h + 4)
                 x1 = max(0, x - 6)
                 x2 = min(inner.shape[1], x + w + 6)
                 boxes.append((y1, y2, x1, x2))
@@ -278,8 +238,22 @@ class PaddleTrocrPipeline:
         # Sort lines top-to-bottom
         boxes.sort(key=lambda b: b[0])
 
+        # Merge boxes overlapping vertically by >= 30%
+        merged_boxes = []
+        for b in boxes:
+            if not merged_boxes:
+                merged_boxes.append(b)
+            else:
+                prev_y1, prev_y2, prev_x1, prev_x2 = merged_boxes[-1]
+                y1, y2, x1, x2 = b
+                overlap = min(prev_y2, y2) - max(prev_y1, y1)
+                if overlap > 0 and overlap >= 0.3 * min(prev_y2 - prev_y1, y2 - y1):
+                    merged_boxes[-1] = (min(prev_y1, y1), max(prev_y2, y2), min(prev_x1, x1), max(prev_x2, x2))
+                else:
+                    merged_boxes.append(b)
+
         crops = []
-        for y1, y2, x1, x2 in boxes:
+        for y1, y2, x1, x2 in merged_boxes:
             crop = inner_img[y1:y2, x1:x2]
             if crop.shape[0] >= 10 and crop.shape[1] >= 15:
                 crops.append(crop)
@@ -287,5 +261,5 @@ class PaddleTrocrPipeline:
         if not crops:
             crops.append(image)
 
-        logger.info("Morphological segmenter extracted %d clean text line crops.", len(crops))
+        logger.info("Adaptive line segmenter extracted %d clean text line crops.", len(crops))
         return crops
