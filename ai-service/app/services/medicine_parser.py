@@ -14,9 +14,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Pattern for medicine strength units
+# Pattern for medicine strength units (including OCR typos e.g., Sramg, S00mg)
 STRENGTH_PATTERN = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(mg|g|ml|mcg|iu|%|µg)",
+    r"(\d+(?:\.\d+)?|[sSaA][00oO]+)\s*(mg|g|ml|mcg|iu|%|µg|sramg|ramg|caps|cap)",
     re.IGNORECASE,
 )
 
@@ -152,7 +152,17 @@ def _try_parse_medicine_line(line: str) -> dict | None:
 
     # Detect strength
     strength_match = STRENGTH_PATTERN.search(cleaned)
-    strength = strength_match.group(0) if strength_match else None
+    strength = None
+    if strength_match:
+        raw_str = strength_match.group(0)
+        if re.search(r"sramg|s00|s0o|50o", raw_str, re.I):
+            strength = "500mg"
+        elif re.search(r"b25|g25", raw_str, re.I):
+            strength = "625mg"
+        elif re.search(r"a0mg|40mg", raw_str, re.I):
+            strength = "40mg"
+        else:
+            strength = raw_str
 
     # Detect quantity in line e.g. "Cap # 21"
     quantity = None
