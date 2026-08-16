@@ -115,45 +115,55 @@ class PaddleTrocrPipeline:
             return ""
 
     def process_prescription(self, image: np.ndarray) -> str:
-        """End-to-end pipeline: Preprocess -> Line Detection -> TrOCR Recognition."""
+        """End-to-end pipeline: Preprocess -> Tesseract 5 + TrOCR Line Recognition."""
         if not self._loaded:
             self.load_models()
 
+        # 1. Tesseract 5 full document extraction (reliable, no hallucinations)
+        import pytesseract
+        from PIL import Image as PILImage
+
+        tess_lines: list[str] = []
+        try:
+            pil_img = PILImage.fromarray(image)
+            tess_raw = pytesseract.image_to_string(pil_img, config="--psm 6").strip()
+            for line in tess_raw.split("\n"):
+                line = line.strip()
+                if line and len(line) >= 2 and self._is_valid_text_line(line):
+                    tess_lines.append(line)
+        except Exception as e:
+            logger.warning("Tesseract 5 extraction error: %s", e)
+
+        # 2. TrOCR line crop recognition
         preprocessed = self.preprocess_image(image)
         line_crops = self.detect_line_crops(preprocessed)
 
-        recognized_lines: list[str] = []
+        trocr_lines: list[str] = []
         for crop in line_crops[:12]:
             line_str = self.recognize_line(crop)
-            if line_str and len(line_str) >= 2:
-                recognized_lines.append(line_str)
+            if line_str and len(line_str) >= 2 and not self._is_hallucination(line_str):
+                trocr_lines.append(line_str)
 
-        full_text = "\n".join(recognized_lines).strip()
-        logger.info("PaddleOCR + TrOCR pipeline extracted %d lines of text.", len(recognized_lines))
+        all_lines = tess_lines + trocr_lines
+        full_text = "\n".join(all_lines).strip()
+        logger.info("OCR pipeline extracted %d lines of text (Tess: %d, TrOCR: %d).", len(all_lines), len(tess_lines), len(trocr_lines))
         return full_text
 
     def _is_hallucination(self, text: str) -> bool:
-        """General structural validation for single-line handwritten OCR crops.
+        """Validation for single-line handwritten OCR crops.
         
-        Handwritten prescription line crops are short drug/dosage phrases (1-5 words).
-        Long prose sentences (6+ words) or common English grammatical connectives
-        (e.g., 'who had been', 'of the american', 'was established') indicate TrOCR prose model hallucinations.
+        Filter out common TrOCR IAM prose dataset hallucinations.
         """
         if not text:
             return True
 
         text_clean = text.strip()
-        words = text_clean.split()
-
-        # Prescription line crops rarely exceed 6 words per line
-        if len(words) >= 6 and not any(ch.isdigit() for ch in text_clean):
-            return True
 
         # Common English prose sentence connectives unlikely in prescription medication lines
         prose_connectives = [
-            "who had", "been able", "of the", "in the", "to take the",
+            "who had", "been able", "of the american", "to take the",
             "written in", "secretary of", "department of", "government of",
-            "united states", "housewives", "beginning of"
+            "united states", "housewives", "beginning of the"
         ]
         lower = text_clean.lower()
         return any(conn in lower for conn in prose_connectives)
