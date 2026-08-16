@@ -76,6 +76,7 @@ async def process_prescription(
     medicines: list[MedicineMatch] = []
 
     for entry in parsed:
+        name = entry["name"]
         match_result = {
             "matched_generic_name": None,
             "matched_brand_name": None,
@@ -87,11 +88,20 @@ async def process_prescription(
             if brand_hint:
                 match_result = medicine_matcher.match(brand_hint)
             if not match_result.get("matched_generic_name"):
-                match_result = medicine_matcher.match(entry["name"])
+                match_result = medicine_matcher.match(name)
+
+        conf = match_result.get("confidence", 0.0)
+        has_strength = bool(entry.get("strength"))
+        has_dosage_form = bool(entry.get("dosage_form"))
+
+        # Drop prose noise words ('million', 'spoken', 'mittled') with weak fuzzy match (< 75.0%) and no dosage strength
+        if conf < 75.0 and not has_strength and not has_dosage_form:
+            logger.info("Dropping low-confidence noise candidate: %s (Conf: %.1f%%)", name, conf)
+            continue
 
         medicines.append(
             MedicineMatch(
-                name=entry["name"],
+                name=name,
                 strength=entry.get("strength"),
                 dosage_form=entry.get("dosage_form"),
                 frequency=entry.get("frequency"),
@@ -100,7 +110,7 @@ async def process_prescription(
                 instruction=entry.get("instruction"),
                 matched_generic_name=match_result["matched_generic_name"],
                 matched_brand_name=match_result["matched_brand_name"],
-                confidence=match_result["confidence"],
+                confidence=conf,
             )
         )
 
