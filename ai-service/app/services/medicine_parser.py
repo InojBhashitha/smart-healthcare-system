@@ -21,7 +21,7 @@ STRENGTH_PATTERN = re.compile(
 )
 
 
-def _normalize_ocr_digits(val_str: str, unit: str = "mg") -> str:
+def _normalize_ocr_digits(val_str: str, raw_unit: str = "mg") -> str:
     """General OCR digit substitution algorithm for any numeric dosage string."""
     if not val_str:
         return ""
@@ -35,8 +35,8 @@ def _normalize_ocr_digits(val_str: str, unit: str = "mg") -> str:
         .replace("b", "6")
     )
     cleaned_num = re.sub(r"[^\d.]", "", val)
-    # Handle Sramg typo where 'S' is 5 and 'ramg' implies '00mg'
-    if cleaned_num == "5" and unit in ["sramg", "ramg"]:
+    # Handle Sramg/ramg typo where 'S' is 5 and 'ramg' implies '00mg'
+    if (cleaned_num == "5" or cleaned_num == "") and raw_unit in ["sramg", "ramg"]:
         cleaned_num = "500"
     return cleaned_num
 
@@ -175,10 +175,9 @@ def _try_parse_medicine_line(line: str) -> dict | None:
     strength_match = STRENGTH_PATTERN.search(cleaned)
     if strength_match:
         raw_num = strength_match.group(1)
-        unit = strength_match.group(2).lower()
-        if unit in ["sramg", "ramg"]:
-            unit = "mg"
-        norm_num = _normalize_ocr_digits(raw_num, unit=unit)
+        raw_unit = strength_match.group(2).lower()
+        norm_num = _normalize_ocr_digits(raw_num, raw_unit=raw_unit)
+        unit = "mg" if raw_unit in ["sramg", "ramg"] else raw_unit
         if norm_num:
             strength = f"{norm_num}{unit}"
 
