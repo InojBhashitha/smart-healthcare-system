@@ -11,6 +11,7 @@ import com.smarthealthcare.web.entity.Pharmacy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
@@ -34,6 +35,13 @@ public class ProfileController {
         Long pharmacyId = SecurityUtils.getAuthenticatedPharmacyId();
         Pharmacy pharmacy = profileService.updatePharmacyLocation(pharmacyId, latitude, longitude);
         return ResponseEntity.ok(pharmacy);
+    }
+
+    @PutMapping
+    public ResponseEntity<User> updateProfile(@RequestBody com.smarthealthcare.web.dto.UpdateProfileRequest request) {
+        Long userId = SecurityUtils.getAuthenticatedUserId();
+        User user = profileService.updateProfile(userId, request);
+        return ResponseEntity.ok(user);
     }
 
 }

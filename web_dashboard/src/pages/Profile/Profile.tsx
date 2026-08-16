@@ -13,6 +13,7 @@ export const Profile: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isEditingInfo, setIsEditingInfo] = useState<boolean>(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Form Field States
   const [name, setName] = useState<string>('');
@@ -72,6 +73,7 @@ export const Profile: React.FC = () => {
   // --- Fetch Profile Data ---
   const fetchProfile = async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const data = await profileService.getPharmacyProfile();
       setProfile(data);
@@ -79,8 +81,9 @@ export const Profile: React.FC = () => {
       setContactNumber(data.contactNumber);
       setEmail(data.email);
       setAddress(data.address);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load profile details:', err);
+      setApiError(err.message || 'Failed to load profile details from backend.');
     } finally {
       setLoading(false);
     }
@@ -257,6 +260,7 @@ export const Profile: React.FC = () => {
     if (!validateForm() || !profile) return;
 
     setLoading(true);
+    setFormErrors({});
     try {
       const updatedProfile: PharmacyProfile = {
         ...profile,
@@ -268,8 +272,9 @@ export const Profile: React.FC = () => {
       const result = await profileService.updatePharmacyProfile(updatedProfile);
       setProfile(result);
       setIsEditingInfo(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update pharmacy details:', err);
+      setFormErrors(prev => ({ ...prev, form: err.message || 'Failed to update pharmacy details.' }));
     } finally {
       setLoading(false);
     }
@@ -303,21 +308,20 @@ export const Profile: React.FC = () => {
   const confirmLocationSelection = async () => {
     if (!profile) return;
     setLoading(true);
+    setApiError(null);
     try {
-      const updatedProfile: PharmacyProfile = {
-        ...profile,
-        location: {
-          latitude: Number(tempLat.toFixed(6)),
-          longitude: Number(tempLng.toFixed(6)),
-          configured: true,
-          lastUpdated: 'Today'
-        }
-      };
-      const result = await profileService.updatePharmacyProfile(updatedProfile);
-      setProfile(result);
+      const lat = Number(tempLat.toFixed(6));
+      const lng = Number(tempLng.toFixed(6));
+      const newLoc = await profileService.updatePharmacyLocation(lat, lng);
+      setProfile(prev => prev ? {
+        ...prev,
+        location: newLoc
+      } : null);
       setIsMapModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save coordinates:', err);
+      setApiError(err.message || 'Failed to save location coordinates.');
+      setIsMapModalOpen(false);
     } finally {
       setLoading(false);
     }
@@ -338,6 +342,19 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="profile-page">
+      {apiError && (
+        <div style={{
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fee2e2',
+          borderRadius: '6px',
+          color: '#991b1b',
+          padding: '12px 16px',
+          marginBottom: '20px',
+          fontSize: '14px'
+        }}>
+          {apiError}
+        </div>
+      )}
       {/* Header */}
       <header className="profile-header">
         <h1 className="profile-title">Profile & Location</h1>
@@ -412,6 +429,11 @@ export const Profile: React.FC = () => {
                   {formErrors.address && <span className="field-error" style={{ color: '#de3545', fontSize: '12px' }}>{formErrors.address}</span>}
                 </div>
               </div>
+              {formErrors.form && (
+                <div style={{ color: '#de3545', fontSize: '13px', marginTop: '12px', fontWeight: '500' }}>
+                  {formErrors.form}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={handleInfoCancel} className="btn btn-secondary">
                   Cancel

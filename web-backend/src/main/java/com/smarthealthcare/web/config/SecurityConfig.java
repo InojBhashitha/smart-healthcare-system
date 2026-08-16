@@ -60,7 +60,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/web/medicines/**").hasRole("PHARMACIST")
                         .requestMatchers("/api/web/dashboard/**").hasRole("PHARMACIST")
                         .requestMatchers("/api/web/stock/**").hasRole("PHARMACIST")
-                        .requestMatchers("/api/web/profile/**").hasRole("PHARMACIST")
+                        .requestMatchers("/api/web/profile", "/api/web/profile/**").hasRole("PHARMACIST")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
