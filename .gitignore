@@ -17,7 +17,11 @@ ai-service/app/*/__pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.cache/
+.paddleocr/
 .env
+dataset/
+eval_results.json
 
 # Flutter / Mobile Frontend
 frontend/.dart_tool/
