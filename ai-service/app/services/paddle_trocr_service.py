@@ -189,7 +189,7 @@ class PaddleTrocrPipeline:
         return False
 
     def _fallback_line_segmenter(self, image: np.ndarray) -> list[np.ndarray]:
-        """Morphological contour line segmenter with vertical overlap merging."""
+        """Morphological contour line segmenter designed for prescription handwriting."""
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         else:
@@ -206,10 +206,8 @@ class PaddleTrocrPipeline:
         inner = gray[y_start:y_end, x_start:x_end]
         inner_img = image[y_start:y_end, x_start:x_end]
 
-        # Adaptive Gaussian Thresholding to prevent contrast washout
-        binary = cv2.adaptiveThreshold(
-            inner, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 10
-        )
+        # Otsu Binarization directly on grayscale to locate ink bounding boxes
+        _, binary = cv2.threshold(inner, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (45, 6))
         dilated = cv2.dilate(binary, kernel, iterations=2)
 
@@ -218,32 +216,18 @@ class PaddleTrocrPipeline:
         boxes = []
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
-            if w >= 25 and 10 <= h <= 180:
-                y1 = max(0, y - 4)
-                y2 = min(inner.shape[0], y + h + 4)
-                x1 = max(0, x - 6)
-                x2 = min(inner.shape[1], x + w + 6)
+            if w >= 30 and 10 <= h <= 180:
+                y1 = max(0, y - 5)
+                y2 = min(inner.shape[0], y + h + 5)
+                x1 = max(0, x - 8)
+                x2 = min(inner.shape[1], x + w + 8)
                 boxes.append((y1, y2, x1, x2))
 
         # Sort lines top-to-bottom
         boxes.sort(key=lambda b: b[0])
 
-        # Merge boxes overlapping vertically by >= 30%
-        merged_boxes = []
-        for b in boxes:
-            if not merged_boxes:
-                merged_boxes.append(b)
-            else:
-                prev_y1, prev_y2, prev_x1, prev_x2 = merged_boxes[-1]
-                y1, y2, x1, x2 = b
-                overlap = min(prev_y2, y2) - max(prev_y1, y1)
-                if overlap > 0 and overlap >= 0.3 * min(prev_y2 - prev_y1, y2 - y1):
-                    merged_boxes[-1] = (min(prev_y1, y1), max(prev_y2, y2), min(prev_x1, x1), max(prev_x2, x2))
-                else:
-                    merged_boxes.append(b)
-
         crops = []
-        for y1, y2, x1, x2 in merged_boxes:
+        for y1, y2, x1, x2 in boxes:
             crop = inner_img[y1:y2, x1:x2]
             if crop.shape[0] >= 10 and crop.shape[1] >= 15:
                 crops.append(crop)
