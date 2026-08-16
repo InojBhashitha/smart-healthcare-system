@@ -97,9 +97,9 @@ def parse_medicines(raw_text: str) -> list[dict]:
         if not line or len(line) < 2:
             continue
 
-        # Check for standalone brand name in parentheses e.g. "(Himox)"
-        paren_match = re.match(r"^\(([^)]+)\)$", line)
-        if paren_match:
+        # Check for standalone brand name in parentheses e.g. "(Himox)" or "( ( Ethmiox ."
+        paren_match = re.match(r"^[\s(]+([a-zA-Z0-9\s]{3,})[\s).]+$", line)
+        if paren_match and not line.lower().startswith("amox"):
             pending_brand = paren_match.group(1).strip()
             continue
 
