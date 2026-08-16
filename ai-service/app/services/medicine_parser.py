@@ -2,7 +2,7 @@
 
 Extracts structured fields from raw OCR text lines:
     - medicine name
-    - strength (e.g., "150 mg")
+    - strength (e.g., "500 mg")
     - dosage form (e.g., "capsule", "tablet", "syrup")
     - frequency (e.g., "3 times per day", "twice daily")
     - duration (e.g., "7 days", "2 weeks")
@@ -20,17 +20,23 @@ STRENGTH_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Pattern for duration (e.g., "7 days", "2 weeks", "1 month")
+# Pattern for duration (e.g., "7 days", "seven days", "2 weeks", "5 days")
 DURATION_PATTERN = re.compile(
-    r"\b(\d+)\s*(day|days|wk|wks|week|weeks|month|months)\b",
+    r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(day|days|wk|wks|week|weeks|month|months)\b",
     re.IGNORECASE,
 )
 
-# Pattern for quantity (e.g., "21 caps", "14 tabs", "10 tablets")
+# Pattern for quantity (e.g., "Cap # 21", "21 caps", "14 tabs", "#21", "qty 21")
 QUANTITY_PATTERN = re.compile(
-    r"\b(?:qty|quantity|count|x|#)?\s*(\d+)\s*(tab|tabs|tablet|tablets|cap|caps|capsule|capsules|vial|vials|bottle|bottles)\b",
+    r"\b(?:qty|quantity|count|cap|caps|tab|tabs|tablet|tablets)?\s*#\s*(\d+)\b|\b(\d+)\s*(tab|tabs|tablet|tablets|cap|caps|capsule|capsules|vial|vials|bottle|bottles)\b",
     re.IGNORECASE,
 )
+
+# Word numbers map
+WORD_NUMBERS = {
+    "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+}
 
 # Dosage form keywords and map
 DOSAGE_FORM_MAP = {
@@ -52,7 +58,6 @@ DOSAGE_FORM_MAP = {
     "ointment": "ointment",
     "drops": "drop",
     "drop": "drop",
-    "eye drops": "drop",
 }
 
 # Frequency map
@@ -71,7 +76,8 @@ SKIP_PREFIXES = (
     "address", "phone", "tel", "tel:", "age", "sex", "gender", "hospital",
     "clinic", "signature", "refill", "diagnosis", "weight", "height",
     "note", "note:", "reg", "reg.", "mbbs", "slmc", "street", "road",
-    "colombo", "lanka", "city", "town", "no:", "no."
+    "colombo", "lanka", "city", "town", "no:", "no.", "sig", "sig:", "sig.",
+    "physician", "physician's", "lic", "lic.", "ptr", "ptr.", "s2", "s2."
 )
 
 
@@ -84,22 +90,31 @@ def parse_medicines(raw_text: str) -> list[dict]:
     lines = raw_text.strip().split("\n")
     medicines: list[dict] = []
     current_medicine: dict | None = None
+    pending_brand: str | None = None
 
     for line in lines:
         line = line.strip()
-        if not line or len(line) < 3:
+        if not line or len(line) < 2:
+            continue
+
+        # Check for standalone brand name in parentheses e.g. "(Himox)"
+        paren_match = re.match(r"^\(([^)]+)\)$", line)
+        if paren_match:
+            pending_brand = paren_match.group(1).strip()
             continue
 
         medicine = _try_parse_medicine_line(line)
 
         if medicine:
+            if pending_brand:
+                medicine["brand_hint"] = pending_brand
+                pending_brand = None
             current_medicine = medicine
             medicines.append(current_medicine)
         elif current_medicine and _is_instruction_line(line):
             existing = current_medicine.get("instruction", "")
             full_inst = f"{existing} {line}".strip() if existing else line
             current_medicine["instruction"] = full_inst
-            # Re-parse instruction for additional frequency/duration/quantity details
             _enrich_structured_fields(current_medicine, full_inst)
 
     logger.info("Parsed %d structured medicine entries from OCR text", len(medicines))
@@ -113,18 +128,31 @@ def _try_parse_medicine_line(line: str) -> dict | None:
         return None
 
     lower_line = cleaned.lower()
+
+    # Skip headers, doctor info, address lines, and instruction lines
     if any(lower_line.startswith(prefix) for prefix in SKIP_PREFIXES):
         return None
 
-    if re.search(r"\b(tel|phone|mbbs|slmc|reg|colombo|street|road|city|lanka|date|age|gender)\b", lower_line):
+    if _is_instruction_line(cleaned) and not STRENGTH_PATTERN.search(cleaned):
         return None
 
-    # Detect dosage form prefix/suffix (e.g. "Tab Azimax 500mg", "Cap Caricef")
+    if re.search(r"\b(tel|phone|mbbs|slmc|reg|colombo|street|road|city|lanka|date|age|gender|physician|lic|ptr|s2)\b", lower_line):
+        return None
+
+    # Detect dosage form
     dosage_form = _extract_dosage_form(cleaned)
 
     # Detect strength
     strength_match = STRENGTH_PATTERN.search(cleaned)
     strength = strength_match.group(0) if strength_match else None
+
+    # Detect quantity in line e.g. "Cap # 21"
+    quantity = None
+    qty_match = QUANTITY_PATTERN.search(cleaned)
+    if qty_match:
+        q_num = qty_match.group(1) or qty_match.group(2)
+        unit = qty_match.group(3) or dosage_form or "capsules"
+        quantity = f"{q_num} {unit}".strip()
 
     # Extract name part
     if strength_match:
@@ -147,7 +175,7 @@ def _try_parse_medicine_line(line: str) -> dict | None:
         "dosage_form": dosage_form,
         "frequency": None,
         "duration": None,
-        "quantity": None,
+        "quantity": quantity,
         "instruction": after_text if after_text else None,
     }
 
@@ -181,20 +209,25 @@ def _enrich_structured_fields(entry: dict, text: str):
     if not entry.get("duration"):
         dur_match = DURATION_PATTERN.search(text)
         if dur_match:
-            entry["duration"] = f"{dur_match.group(1)} {dur_match.group(2).lower()}"
+            dur_num = dur_match.group(1).lower()
+            dur_num = WORD_NUMBERS.get(dur_num, dur_num)
+            unit = dur_match.group(2).lower()
+            if not unit.endswith("s"):
+                unit += "s"
+            entry["duration"] = f"{dur_num} {unit}"
 
     # Extract Quantity
     if not entry.get("quantity"):
         qty_match = QUANTITY_PATTERN.search(text)
         if qty_match:
-            qty_num = qty_match.group(1)
-            unit = qty_match.group(2)
+            qty_num = qty_match.group(1) or qty_match.group(2)
+            unit = qty_match.group(3) or entry.get("dosage_form") or "capsules"
             entry["quantity"] = f"{qty_num} {unit}"
 
 
 def _is_instruction_line(line: str) -> bool:
     """Check if a line looks like dosage instructions."""
-    keywords = ["take", "apply", "use", "daily", "times", "morning", "night", "before", "after", "meals", "days"]
+    keywords = ["take", "apply", "use", "daily", "times", "morning", "night", "before", "after", "meals", "days", "sig:", "sig.", "sig"]
     lower = line.lower()
     return any(kw in lower for kw in keywords)
 
