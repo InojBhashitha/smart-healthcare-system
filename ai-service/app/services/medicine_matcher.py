@@ -151,12 +151,12 @@ class MedicineMatcher:
                 "confidence": 100.0,
             }
 
-        # RapidFuzz weighted ratio match (threshold 50.0 for fuzzy OCR correction)
+        # RapidFuzz weighted ratio match (threshold 70.0 for reliable drug database match)
         result = process.extractOne(
             clean_name,
             self._name_list,
             scorer=fuzz.WRatio,
-            score_cutoff=50.0,
+            score_cutoff=70.0,
         )
 
         if result is None:

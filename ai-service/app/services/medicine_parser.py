@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # General RegEx pattern for ANY medical dosage strength (number + unit)
 STRENGTH_PATTERN = re.compile(
-    r"\b([sS\d][\d\.\sOoIlLiB]{0,5})\s*(mg|g|ml|mcg|iu|%|µg|sramg|ramg|gram|milligram|milliliter)\b",
+    r"\b([sS\d][\d\.\sOoIlLiB]{0,5})\s*(mg|g|ml|mcg|iu|%|µg|sramg|ramg|soromg|oromg|gram|milligram|milliliter)\b",
     re.IGNORECASE,
 )
 
@@ -35,8 +35,8 @@ def _normalize_ocr_digits(val_str: str, raw_unit: str = "mg") -> str:
         .replace("b", "6")
     )
     cleaned_num = re.sub(r"[^\d.]", "", val)
-    # Handle Sramg/ramg typo where 'S' is 5 and 'ramg' implies '00mg'
-    if (cleaned_num == "5" or cleaned_num == "") and raw_unit in ["sramg", "ramg"]:
+    # Handle Sramg/Soromg/ramg typos where 'S' is 5 and 'ramg/soromg' implies '00mg'
+    if (cleaned_num == "5" or cleaned_num == "") and raw_unit in ["sramg", "ramg", "soromg", "oromg"]:
         cleaned_num = "500"
     return cleaned_num
 
@@ -132,10 +132,15 @@ def parse_medicines(raw_text: str) -> list[dict]:
             current_medicine = medicine
             medicines.append(current_medicine)
         elif current_medicine:
-            # Extract strength if missing in main line e.g. "500mg Cap # 21"
+            # Extract strength if missing in main line e.g. "500mg Cap # 21" or "Sramg Caps 21"
             str_match = STRENGTH_PATTERN.search(line)
             if str_match and not current_medicine.get("strength"):
-                current_medicine["strength"] = str_match.group(0)
+                raw_num = str_match.group(1)
+                raw_unit = str_match.group(2).lower()
+                norm_num = _normalize_ocr_digits(raw_num, raw_unit=raw_unit)
+                unit = "mg" if raw_unit in ["sramg", "ramg"] else raw_unit
+                if norm_num:
+                    current_medicine["strength"] = f"{norm_num}{unit}"
 
             # Append instruction/dosage details
             existing = current_medicine.get("instruction") or ""
@@ -177,7 +182,7 @@ def _try_parse_medicine_line(line: str) -> dict | None:
         raw_num = strength_match.group(1)
         raw_unit = strength_match.group(2).lower()
         norm_num = _normalize_ocr_digits(raw_num, raw_unit=raw_unit)
-        unit = "mg" if raw_unit in ["sramg", "ramg"] else raw_unit
+        unit = "mg" if raw_unit in ["sramg", "ramg", "soromg", "oromg"] else raw_unit
         if norm_num:
             strength = f"{norm_num}{unit}"
 
