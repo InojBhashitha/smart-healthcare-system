@@ -143,20 +143,20 @@ class PaddleTrocrPipeline:
             "documented", "legend", "market", "application", "chronicling",
             "unsigned's", "russo", "quality history", "common people",
             "first appearance", "in his own", "sipoal", "displaystyle",
-            "itemptment", "12th century", "will know", "topping the", "century days"
+            "itemptment", "12th century", "will know", "topping the", "century days",
+            "management information"
         ]
         lower = text.lower()
         return any(ph in lower for ph in hallucinations)
 
     def _is_valid_text_line(self, text: str) -> bool:
-        """Check if extracted text is a valid line (filters out zero-only lines like '0 0', '0-000')."""
+        """Check if extracted text is a valid line (requires 2+ consecutive letters, filtering 0 1, 0 0, 20)."""
         text = text.strip()
-        if not text or len(text) < 2:
+        if not text or len(text) < 3:
             return False
 
-        # Filter out lines that are only zeros or single punctuation marks
-        cleaned = re.sub(r"[\s0\-.,:]+", "", text)
-        if not cleaned:
+        # Require at least 2 consecutive alphabetic letters (e.g. 'mg', 'cap', 'tab', 'Amoxicillin')
+        if not re.search(r"[a-zA-Z]{2,}", text):
             return False
 
         return True
