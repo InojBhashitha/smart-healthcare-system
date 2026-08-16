@@ -38,9 +38,12 @@ public class PrescriptionMedicineService {
             medicine.setPrescription(prescription);
 
             // OCR data
-            medicine.setMedicineName(medicineInfo.getName());
-            medicine.setStrength(medicineInfo.getStrength());
-            medicine.setInstruction(medicineInfo.getInstruction());
+            String brandName = medicineInfo.getMatchedBrandName();
+            medicine.setMedicineName(
+                (brandName != null && !brandName.trim().isEmpty()) ? brandName : medicineInfo.getName()
+            );
+            medicine.setStrength(medicineInfo.getStrength() != null ? medicineInfo.getStrength() : "");
+            medicine.setInstruction(medicineInfo.getInstruction() != null ? medicineInfo.getInstruction() : "");
             medicine.setVerified(false);
 
             // Check if medicine exists in master database using AI-matched generic/brand names first

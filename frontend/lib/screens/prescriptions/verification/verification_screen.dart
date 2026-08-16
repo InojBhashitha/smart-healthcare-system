@@ -339,20 +339,48 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         style: const TextStyle(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
                       ),
                     ],
-                    if (med.strength.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        "Strength: ${med.strength}",
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                    if (med.instruction.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        "Dosage: ${med.instruction}",
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
-                      ),
-                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 14, color: Colors.white54),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Strength: ",
+                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        Expanded(
+                          child: Text(
+                            med.strength.isNotEmpty ? med.strength : "Not detected (Tap ✏️ to edit, e.g. 500mg)",
+                            style: TextStyle(
+                              color: med.strength.isNotEmpty ? Colors.white : Colors.white38,
+                              fontSize: 12,
+                              fontStyle: med.strength.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 14, color: Colors.white54),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Dosage: ",
+                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        Expanded(
+                          child: Text(
+                            med.instruction.isNotEmpty ? med.instruction : "Not detected (Tap ✏️ to edit, e.g. 1 cap 3x daily)",
+                            style: TextStyle(
+                              color: med.instruction.isNotEmpty ? Colors.white : Colors.white38,
+                              fontSize: 12,
+                              fontStyle: med.instruction.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
