@@ -16,6 +16,28 @@ public class Medicine {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "medicine_id")
+    private Integer medicineId;
+
+    @Column(name = "generic_name")
+    private String genericName;
+
+    @Column(name = "brand_name")
+    private String brandName;
+
+    @Column(name = "category")
+    private String category;
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "side_effects")
+    private String sideEffects;
+
+    @Column(name = "strength", length = 100)
+    private String strength;
+
+    @Column(name = "dosage_form", length = 50)
+    private String dosageForm;
 
 }
