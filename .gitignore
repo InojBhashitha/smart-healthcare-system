@@ -22,6 +22,9 @@ ai-service/app/*/__pycache__/
 .env
 dataset/
 eval_results.json
+ai-service/trocr_doctor_finetuned/
+*.safetensors
+*.bin
 
 # Flutter / Mobile Frontend
 frontend/.dart_tool/

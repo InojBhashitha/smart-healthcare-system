@@ -127,16 +127,24 @@ def run_finetuning():
     model.config.pad_token_id = processor.tokenizer.pad_token_id
     model.config.vocab_size = model.config.decoder.vocab_size
 
+    # Freeze vision encoder parameters to save RAM and speed up training on CPU
+    for param in model.encoder.parameters():
+        param.requires_grad = False
+
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Trainable parameters: {trainable_params:,} (Vision encoder frozen for CPU efficiency)")
+
     train_dataset = DoctorHandwritingDataset(train_samples, processor)
     eval_dataset = DoctorHandwritingDataset(eval_samples, processor)
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=OUTPUT_DIR,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
+        gradient_accumulation_steps=4,
         fp16=torch.cuda.is_available(),
         predict_with_generate=True,
-        num_train_epochs=8,
+        num_train_epochs=6,
         logging_steps=5,
         save_strategy="epoch",
         eval_strategy="epoch",
@@ -144,6 +152,7 @@ def run_finetuning():
         learning_rate=5e-5,
         weight_decay=0.01,
         report_to="none",
+        dataloader_num_workers=0,
     )
 
     trainer = Seq2SeqTrainer(

@@ -34,11 +34,16 @@ class PaddleTrocrPipeline:
             return
 
         try:
+            import os
             from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
-            logger.info("Loading Microsoft TrOCR model: %s ...", self.trocr_model_name)
-            self.processor = TrOCRProcessor.from_pretrained(self.trocr_model_name)
-            self.trocr_model = VisionEncoderDecoderModel.from_pretrained(self.trocr_model_name)
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finetuned_path = os.path.join(base_dir, "trocr_doctor_finetuned")
+            model_target = finetuned_path if os.path.exists(os.path.join(finetuned_path, "config.json")) else self.trocr_model_name
+
+            logger.info("Loading TrOCR model from: %s ...", model_target)
+            self.processor = TrOCRProcessor.from_pretrained(model_target)
+            self.trocr_model = VisionEncoderDecoderModel.from_pretrained(model_target)
 
             self._loaded = True
             logger.info("TrOCR model and processor loaded successfully.")
