@@ -1,12 +1,15 @@
-"""PaddleOCR (PP-OCRv5) + Microsoft TrOCR Hybrid Handwritten Processing Service.
+"""PaddleOCR PP-OCRv5 Text Detection + Microsoft TrOCR Line Recognition Pipeline.
 
-Combines PaddleOCR's high-precision text line & region detection with
-Microsoft TrOCR (microsoft/trocr-base-handwritten) for end-to-end
-handwritten prescription text extraction.
+Architecture:
+    1. OpenCV Morphological Line Segmenter — Isolates horizontal text line crops.
+    2. Image Preprocessing — Upscales small camera photos to 1400px with CLAHE contrast.
+    3. Microsoft TrOCR — Decodes handwritten text from each line crop.
+    4. RapidFuzz Post-Processing — Filters IAM dataset hallucinations and zero-noise lines.
 """
 
-import logging
 import cv2
+import re
+import logging
 import numpy as np
 from PIL import Image
 
@@ -14,28 +17,26 @@ logger = logging.getLogger(__name__)
 
 
 class PaddleTrocrPipeline:
-    """Hybrid pipeline using PaddleOCR for line detection and TrOCR for handwriting recognition."""
+    """Hybrid PaddleOCR/OpenCV line detection + TrOCR line recognition pipeline."""
 
-    def __init__(self, trocr_model_name: str = "microsoft/trocr-base-handwritten"):
+    def __init__(
+        self,
+        trocr_model_name: str = "microsoft/trocr-base-handwritten",
+    ):
         self.trocr_model_name = trocr_model_name
-        self.paddle_ocr = None
-        self.processor = None
         self.trocr_model = None
+        self.processor = None
         self._loaded = False
 
     def load_models(self):
-        """Lazy load PaddleOCR detector and TrOCR vision encoder-decoder model."""
+        """Load Microsoft TrOCR vision-encoder-decoder model."""
+        if self._loaded:
+            return
+
         try:
-            logger.info("Initializing PaddleOCR PP-OCRv5 Text Detector...")
-            from paddleocr import PaddleOCR
-
-            # Initialize PaddleOCR detector
-            self.paddle_ocr = PaddleOCR(lang="en")
-            logger.info("PaddleOCR Text Detector initialized successfully.")
-
-            logger.info("Loading Microsoft TrOCR model: %s ...", self.trocr_model_name)
             from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
+            logger.info("Loading Microsoft TrOCR model: %s ...", self.trocr_model_name)
             self.processor = TrOCRProcessor.from_pretrained(self.trocr_model_name)
             self.trocr_model = VisionEncoderDecoderModel.from_pretrained(self.trocr_model_name)
 
@@ -43,7 +44,7 @@ class PaddleTrocrPipeline:
             logger.info("TrOCR model and processor loaded successfully.")
 
         except Exception as e:
-            logger.error("Failed to initialize PaddleOCR + TrOCR pipeline: %s", e)
+            logger.error("Failed to initialize TrOCR pipeline: %s", e)
             self._loaded = False
 
     @property
@@ -53,7 +54,7 @@ class PaddleTrocrPipeline:
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """Preprocess prescription image for optimal text detection and OCR.
 
-        Scales small camera uploads to 1400px, removes camera shadows, and applies CLAHE contrast.
+        Scales small camera uploads to 1400px and applies CLAHE contrast.
         """
         h, w = image.shape[:2]
         max_dim = max(h, w)
@@ -69,13 +70,9 @@ class PaddleTrocrPipeline:
         else:
             gray = image.copy()
 
-        # Illumination Normalization: Remove uneven mobile camera shadows
-        bg = cv2.morphologyEx(gray, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (21, 21)))
-        norm = cv2.divide(gray, bg, scale=255)
-
         # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        enhanced = clahe.apply(norm)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
 
         # Convert back to RGB for TrOCR input compatibility
         enhanced_rgb = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2RGB)
@@ -103,12 +100,11 @@ class PaddleTrocrPipeline:
                 max_new_tokens=48,
                 no_repeat_ngram_size=3,
                 repetition_penalty=1.2,
-                early_stopping=True,
             )
             text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
             text = text.strip()
 
-            # Filter hallucinated phrases, repetitive loops, and invalid number noise
+            # Filter hallucinated phrases, repetitive loops, and zero-only noise
             if self._is_hallucination(text) or self._has_repetition_loop(text) or not self._is_valid_text_line(text):
                 return ""
 
@@ -119,7 +115,7 @@ class PaddleTrocrPipeline:
             return ""
 
     def process_prescription(self, image: np.ndarray) -> str:
-        """End-to-end pipeline: Preprocess -> PaddleOCR Line Detection -> TrOCR Recognition."""
+        """End-to-end pipeline: Preprocess -> Line Detection -> TrOCR Recognition."""
         if not self._loaded:
             self.load_models()
 
@@ -127,7 +123,7 @@ class PaddleTrocrPipeline:
         line_crops = self.detect_line_crops(preprocessed)
 
         recognized_lines: list[str] = []
-        for crop in line_crops[:12]:  # Limit to top 12 lines for efficiency
+        for crop in line_crops[:12]:
             line_str = self.recognize_line(crop)
             if line_str and len(line_str) >= 2:
                 recognized_lines.append(line_str)
@@ -146,20 +142,21 @@ class PaddleTrocrPipeline:
             "successful success", "today . june", "delayed to", "delegates",
             "documented", "legend", "market", "application", "chronicling",
             "unsigned's", "russo", "quality history", "common people",
-            "first appearance", "in his own", "sipoal"
+            "first appearance", "in his own", "sipoal", "displaystyle",
+            "itemptment", "12th century", "will know", "topping the", "century days"
         ]
         lower = text.lower()
         return any(ph in lower for ph in hallucinations)
 
     def _is_valid_text_line(self, text: str) -> bool:
-        """Check if extracted text is a genuine prescription text line (not noise like '0 0', '0 1', '0-000')."""
+        """Check if extracted text is a valid line (filters out zero-only lines like '0 0', '0-000')."""
         text = text.strip()
-        if not text or len(text) < 3:
+        if not text or len(text) < 2:
             return False
 
-        # Require at least 3 alphabetic letters
-        letters = [c for c in text if c.isalpha()]
-        if len(letters) < 3:
+        # Filter out lines that are only zeros or single punctuation marks
+        cleaned = re.sub(r"[\s0\-.,:]+", "", text)
+        if not cleaned:
             return False
 
         return True
