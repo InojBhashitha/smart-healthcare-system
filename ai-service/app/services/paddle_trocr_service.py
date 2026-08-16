@@ -133,21 +133,30 @@ class PaddleTrocrPipeline:
         return full_text
 
     def _is_hallucination(self, text: str) -> bool:
-        """Filter common TrOCR IAM dataset hallucination phrases."""
-        hallucinations = [
-            "american housewives", "government of australia", "government of america",
-            "united states", "housewife", "housewives", "beginning of the beginning",
-            "issuing expertise", "quality of the most", "department of health",
-            "makati city", "maximum long letter", "sing- recap", "exonday",
-            "successful success", "today . june", "delayed to", "delegates",
-            "documented", "legend", "market", "application", "chronicling",
-            "unsigned's", "russo", "quality history", "common people",
-            "first appearance", "in his own", "sipoal", "displaystyle",
-            "itemptment", "12th century", "will know", "topping the", "century days",
-            "management information"
+        """General structural validation for single-line handwritten OCR crops.
+        
+        Handwritten prescription line crops are short drug/dosage phrases (1-5 words).
+        Long prose sentences (6+ words) or common English grammatical connectives
+        (e.g., 'who had been', 'of the american', 'was established') indicate TrOCR prose model hallucinations.
+        """
+        if not text:
+            return True
+
+        text_clean = text.strip()
+        words = text_clean.split()
+
+        # Prescription line crops rarely exceed 6 words per line
+        if len(words) >= 6 and not any(ch.isdigit() for ch in text_clean):
+            return True
+
+        # Common English prose sentence connectives unlikely in prescription medication lines
+        prose_connectives = [
+            "who had", "been able", "of the", "in the", "to take the",
+            "written in", "secretary of", "department of", "government of",
+            "united states", "housewives", "beginning of"
         ]
-        lower = text.lower()
-        return any(ph in lower for ph in hallucinations)
+        lower = text_clean.lower()
+        return any(conn in lower for conn in prose_connectives)
 
     def _is_valid_text_line(self, text: str) -> bool:
         """Check if extracted text is a valid line (requires 2+ consecutive letters, filtering 0 1, 0 0, 20)."""
