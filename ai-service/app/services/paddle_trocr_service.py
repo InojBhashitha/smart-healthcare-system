@@ -118,6 +118,9 @@ class PaddleTrocrPipeline:
         if not self._loaded or self.trocr_model is None or self.processor is None:
             return ""
 
+        if self._is_blank_or_noise(line_crop):
+            return ""
+
         try:
             pil_img = Image.fromarray(line_crop).convert("RGB")
             pixel_values = self.processor(images=pil_img, return_tensors="pt").pixel_values
@@ -162,14 +165,38 @@ class PaddleTrocrPipeline:
         return full_text
 
     def _is_hallucination(self, text: str) -> bool:
-        """Filter common TrOCR hallucination phrases."""
+        """Filter common TrOCR IAM dataset hallucination phrases."""
         hallucinations = [
-            "american housewives", "government of australia", "united states",
-            "housewife", "beginning of the beginning", "issuing expertise",
-            "quality of the most", "department of health"
+            "american housewives", "government of australia", "government of america",
+            "united states", "housewife", "housewives", "beginning of the beginning",
+            "issuing expertise", "quality of the most", "department of health",
+            "makati city", "maximum long letter", "sing- recap", "exonday",
+            "successful success", "today . june", "delayed to"
         ]
         lower = text.lower()
         return any(ph in lower for ph in hallucinations)
+
+    def _is_blank_or_noise(self, line_crop: np.ndarray) -> bool:
+        """Check if a crop is mostly blank white background or image noise without real text ink."""
+        if line_crop is None or line_crop.size == 0:
+            return True
+        if len(line_crop.shape) == 3:
+            gray = cv2.cvtColor(line_crop, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = line_crop.copy()
+
+        # Check standard deviation / contrast variance
+        std_dev = float(np.std(gray))
+        if std_dev < 12.0:  # Flat white/gray background
+            return True
+
+        # Check foreground ink pixel ratio
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        ink_ratio = np.sum(binary > 0) / binary.size
+        if ink_ratio < 0.03 or ink_ratio > 0.85:  # Too empty (<3% ink) or solid black (>85% ink)
+            return True
+
+        return False
 
     def _has_repetition_loop(self, text: str) -> bool:
         """Detect if TrOCR autoregressive generation entered a repetitive loop (e.g. 'ever ever ever')."""
