@@ -205,7 +205,7 @@ class PaddleTrocrPipeline:
 
         # Otsu Binarization directly on grayscale to locate ink bounding boxes
         _, binary = cv2.threshold(inner, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (45, 6))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (40, 6))
         dilated = cv2.dilate(binary, kernel, iterations=2)
 
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -213,20 +213,27 @@ class PaddleTrocrPipeline:
         boxes = []
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
-            if w >= 30 and 10 <= h <= 180:
-                y1 = max(0, y - 5)
-                y2 = min(inner.shape[0], y + h + 5)
-                x1 = max(0, x - 8)
-                x2 = min(inner.shape[1], x + w + 8)
-                boxes.append((y1, y2, x1, x2))
+            if w >= 35 and 12 <= h <= 180:
+                boxes.append((max(0, y - 5), min(inner.shape[0], y + h + 5)))
 
-        # Sort lines top-to-bottom
         boxes.sort(key=lambda b: b[0])
 
+        # Merge y-overlapping line ranges
+        merged_y = []
+        for y1, y2 in boxes:
+            if not merged_y:
+                merged_y.append((y1, y2))
+            else:
+                py1, py2 = merged_y[-1]
+                if max(py1, y1) < min(py2, y2):
+                    merged_y[-1] = (min(py1, y1), max(py2, y2))
+                else:
+                    merged_y.append((y1, y2))
+
         crops = []
-        for y1, y2, x1, x2 in boxes:
-            crop = inner_img[y1:y2, x1:x2]
-            if crop.shape[0] >= 10 and crop.shape[1] >= 15:
+        for y1, y2 in merged_y:
+            crop = inner_img[y1:y2, :]
+            if crop.shape[0] >= 10:
                 crops.append(crop)
 
         if not crops:
