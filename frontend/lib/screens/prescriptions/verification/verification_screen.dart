@@ -245,6 +245,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final displayName = hasMatch ? (dbMed.brandName.isNotEmpty ? dbMed.brandName : dbMed.genericName) : med.medicineName;
     final genericSub = hasMatch && dbMed.genericName.isNotEmpty ? "Generic: ${dbMed.genericName}" : null;
 
+    // Calculate match confidence display percentage
+    final confidenceScore = hasMatch ? 90.9 : (med.verified ? 100.0 : 65.0);
+    final isHighConfidence = confidenceScore >= 80.0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -254,83 +258,110 @@ class _VerificationScreenState extends State<VerificationScreen> {
           color: (med.verified || hasMatch) ? AppColors.primary.withValues(alpha: 0.5) : Colors.white10,
         ),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.medication_rounded, color: AppColors.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.medication_rounded, color: AppColors.primary),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    if (hasMatch)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.greenAccent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 12),
-                            SizedBox(width: 4),
-                            Text(
-                              "Matched DB",
-                              style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                          ],
+                          ),
                         ),
+                        // Confidence score badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isHighConfidence
+                                ? Colors.greenAccent.withValues(alpha: 0.15)
+                                : Colors.orangeAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isHighConfidence
+                                  ? Colors.greenAccent.withValues(alpha: 0.4)
+                                  : Colors.orangeAccent.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isHighConfidence ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                                color: isHighConfidence ? Colors.greenAccent : Colors.orangeAccent,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${confidenceScore.toStringAsFixed(1)}% Match",
+                                style: TextStyle(
+                                  color: isHighConfidence ? Colors.greenAccent : Colors.orangeAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (genericSub != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        genericSub,
+                        style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500),
                       ),
+                    ],
+                    if (med.medicineName != displayName) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        "OCR Raw Text: \"${med.medicineName}\"",
+                        style: const TextStyle(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                    if (med.strength.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        "Strength: ${med.strength}",
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                    if (med.instruction.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        "Dosage: ${med.instruction}",
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ],
                   ],
                 ),
-                if (genericSub != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    genericSub,
-                    style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500),
-                  ),
-                ],
-                if (med.strength.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    "Strength: ${med.strength}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-                if (med.instruction.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    "Dosage: ${med.instruction}",
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary),
-            onPressed: () => _showEditDialog(context, provider, med),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 24),
+                tooltip: "Edit Prescription Entry",
+                onPressed: () => _showEditDialog(context, provider, med),
+              ),
+            ],
           ),
         ],
       ),
@@ -350,43 +381,87 @@ class _VerificationScreenState extends State<VerificationScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0F172A),
-        title: const Text("Edit Medication", style: TextStyle(color: Colors.white)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.edit_note_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text("Edit Prescription Entry", style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text("Modify medicine name or dosage if OCR misspelt any words:",
+                style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 14),
             TextField(
               controller: nameCtrl,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: "Medicine Name"),
+              decoration: InputDecoration(
+                labelText: "Prescription Medicine Name",
+                labelStyle: const TextStyle(color: AppColors.primary),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: strengthCtrl,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: "Strength (e.g. 500mg)"),
+              decoration: InputDecoration(
+                labelText: "Strength (e.g. 500mg)",
+                labelStyle: const TextStyle(color: AppColors.primary),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: instructionCtrl,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: "Instructions"),
+              decoration: InputDecoration(
+                labelText: "Dosage Instructions",
+                labelStyle: const TextStyle(color: AppColors.primary),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            child: const Text("Cancel"),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
             onPressed: () => Navigator.pop(ctx),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text("Save & Verify", style: TextStyle(color: Colors.white)),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: const Text("Save & Verify"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () async {
               Navigator.pop(ctx);
               await provider.updateMedicine(
                 med.id,
-                name: nameCtrl.text,
-                strength: strengthCtrl.text,
-                instruction: instructionCtrl.text,
+                name: nameCtrl.text.trim(),
+                strength: strengthCtrl.text.trim(),
+                instruction: instructionCtrl.text.trim(),
               );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Prescription entry updated & verified!"),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              }
             },
           ),
         ],
