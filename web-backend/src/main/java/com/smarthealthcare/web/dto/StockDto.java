@@ -25,6 +25,8 @@ public class StockDto {
     private Integer medicineId;
     private String genericName;
     private String brandName;
+    private String category;
+    private String strength;
     private StockStatus status;
     private double safetyPercentage;
 
@@ -38,6 +40,8 @@ public class StockDto {
                 .medicineId(stock.getMedicine() != null ? stock.getMedicine().getMedicineId() : null)
                 .genericName(stock.getMedicine() != null ? stock.getMedicine().getGenericName() : null)
                 .brandName(stock.getMedicine() != null ? stock.getMedicine().getBrandName() : null)
+                .category(stock.getMedicine() != null ? stock.getMedicine().getCategory() : null)
+                .strength(stock.getMedicine() != null ? stock.getMedicine().getStrength() : null)
                 .status(StockStatus.from(stock.getQuantityAvailable(), stock.getMinSafetyLevel()))
                 .safetyPercentage(safetyPercentage)
                 .build();

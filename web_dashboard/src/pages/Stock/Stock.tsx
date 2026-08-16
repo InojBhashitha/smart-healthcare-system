@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import type { StockItem } from '../../services/stockService';
-import { stockService, MASTER_MEDICINES, calculateStatus } from '../../services/stockService';
+import type { StockItem, Medicine } from '../../types/stock';
+import { stockService } from '../../services/stockService';
+import { medicineService } from '../../services/medicineService';
 import './Stock.css';
 
 export const Stock: React.FC = () => {
   // --- State Variables ---
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [medicinesList, setMedicinesList] = useState<Medicine[]>([]);
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -34,11 +39,16 @@ export const Stock: React.FC = () => {
   // --- Load Initial Data ---
   const loadStockData = async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const items = await stockService.getStock();
       setStockItems(items);
-    } catch (err) {
+
+      const meds = await medicineService.getMedicines();
+      setMedicinesList(meds);
+    } catch (err: any) {
       console.error('Failed to load stock data:', err);
+      setApiError(err.message || 'Failed to load stock data from backend.');
     } finally {
       setLoading(false);
     }
@@ -51,12 +61,14 @@ export const Stock: React.FC = () => {
   // --- Refresh Trigger ---
   const handleRefresh = async () => {
     setRefreshing(true);
+    setApiError(null);
     try {
       const items = await stockService.getStock();
       setStockItems(items);
       setCurrentPage(1);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to refresh stock:', err);
+      setApiError(err.message || 'Failed to refresh stock.');
     } finally {
       setRefreshing(false);
     }
@@ -103,12 +115,14 @@ export const Stock: React.FC = () => {
   const paginatedItems = filteredItems.slice(startIndex, endIndex);
 
   // --- Autocomplete Searchable Selector Filter ---
-  const autocompleteSuggestions = MASTER_MEDICINES.filter(med =>
-    med.name.toLowerCase().includes(medSearchInput.toLowerCase())
-  );
+  const autocompleteSuggestions = medicinesList.filter(med => {
+    const name = med.brandName ? `${med.brandName} (${med.genericName})` : med.genericName;
+    return name.toLowerCase().includes(medSearchInput.toLowerCase());
+  });
 
-  const handleSelectSuggestion = (med: { name: string; category: string; strength: string }) => {
-    setMedSearchInput(med.name);
+  const handleSelectSuggestion = (med: Medicine) => {
+    setSelectedMedicine(med);
+    setMedSearchInput(med.brandName ? `${med.brandName} (${med.genericName})` : med.genericName);
     setFormCategory(med.category);
     setFormStrength(med.strength);
     setIsDropdownOpen(false);
@@ -127,6 +141,7 @@ export const Stock: React.FC = () => {
     setFormErrors({});
     setIsDropdownOpen(false);
     setSelectedItem(null);
+    setSelectedMedicine(null);
     setActiveModal('add');
   };
 
@@ -155,6 +170,7 @@ export const Stock: React.FC = () => {
   const closeModal = () => {
     setActiveModal(null);
     setSelectedItem(null);
+    setSelectedMedicine(null);
   };
 
   // --- Form Validation ---
@@ -170,52 +186,75 @@ export const Stock: React.FC = () => {
   };
 
   // --- Stateful CRUD Submissions ---
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const newItem: StockItem = {
-      id: `STK-${Math.floor(100 + Math.random() * 900)}`,
-      medicineName: medSearchInput.trim(),
-      category: formCategory.trim(),
-      strength: formStrength.trim(),
-      currentStock: formQuantity,
-      minStockLevel: formMinLevel,
-      status: calculateStatus(formQuantity, formMinLevel),
-      lastUpdated: 'Just now'
-    };
+    if (!selectedMedicine) {
+      setFormErrors(prev => ({ ...prev, medicineName: 'Please select a medicine from suggestions.' }));
+      return;
+    }
 
-    setStockItems(prev => [newItem, ...prev]);
-    closeModal();
+    setLoading(true);
+    setApiError(null);
+    try {
+      const newStock = await stockService.addStock(
+        selectedMedicine.medicineId,
+        formQuantity,
+        formMinLevel,
+        10.0 // Default unit price as no UI input exists
+      );
+      setStockItems(prev => [newStock, ...prev]);
+      closeModal();
+    } catch (err: any) {
+      console.error('Failed to add stock:', err);
+      setFormErrors(prev => ({ ...prev, form: err.message || 'Failed to add stock.' }));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm() || !selectedItem) return;
 
-    setStockItems(prev =>
-      prev.map(item =>
-        item.id === selectedItem.id
-          ? {
-              ...item,
-              medicineName: medSearchInput.trim(),
-              category: formCategory.trim(),
-              strength: formStrength.trim(),
-              currentStock: formQuantity,
-              minStockLevel: formMinLevel,
-              status: calculateStatus(formQuantity, formMinLevel),
-              lastUpdated: 'Just now'
-            }
-          : item
-      )
-    );
-    closeModal();
+    setLoading(true);
+    setApiError(null);
+    try {
+      const price = selectedItem.unitPrice || 10.0;
+      const updatedStock = await stockService.updateStock(
+        selectedItem.stockId,
+        formQuantity,
+        formMinLevel,
+        price
+      );
+      setStockItems(prev =>
+        prev.map(item => (item.stockId === selectedItem.stockId ? updatedStock : item))
+      );
+      closeModal();
+    } catch (err: any) {
+      console.error('Failed to edit stock:', err);
+      setFormErrors(prev => ({ ...prev, form: err.message || 'Failed to edit stock.' }));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteSubmit = () => {
+  const handleDeleteSubmit = async () => {
     if (!selectedItem) return;
-    setStockItems(prev => prev.filter(item => item.id !== selectedItem.id));
-    closeModal();
+    setLoading(true);
+    setApiError(null);
+    try {
+      await stockService.deleteStock(selectedItem.stockId);
+      setStockItems(prev => prev.filter(item => item.stockId !== selectedItem.stockId));
+      closeModal();
+    } catch (err: any) {
+      console.error('Failed to delete stock:', err);
+      setApiError(err.message || 'Failed to delete stock.');
+      closeModal();
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Render Loader Skeleton
@@ -236,6 +275,19 @@ export const Stock: React.FC = () => {
 
   return (
     <div className="stock-page">
+      {apiError && (
+        <div style={{
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fee2e2',
+          borderRadius: '6px',
+          color: '#991b1b',
+          padding: '12px 16px',
+          marginBottom: '20px',
+          fontSize: '14px'
+        }}>
+          {apiError}
+        </div>
+      )}
       {/* Top Header */}
       <header className="stock-header">
         <div>
@@ -536,16 +588,19 @@ export const Stock: React.FC = () => {
                     {isDropdownOpen && medSearchInput.trim() !== '' && activeModal === 'add' && (
                       <div className="autocomplete-results">
                         {autocompleteSuggestions.length > 0 ? (
-                          autocompleteSuggestions.map((med) => (
-                            <div
-                              key={med.name}
-                              className="autocomplete-item"
-                              onClick={() => handleSelectSuggestion(med)}
-                            >
-                              <span>{med.name}</span>
-                              <span className="autocomplete-meta">{med.strength} · {med.category}</span>
-                            </div>
-                          ))
+                          autocompleteSuggestions.map((med) => {
+                            const name = med.brandName ? `${med.brandName} (${med.genericName})` : med.genericName;
+                            return (
+                              <div
+                                key={med.medicineId}
+                                className="autocomplete-item"
+                                onClick={() => handleSelectSuggestion(med)}
+                              >
+                                <span>{name}</span>
+                                <span className="autocomplete-meta">{med.strength} · {med.category}</span>
+                              </div>
+                            );
+                          })
                         ) : (
                           <div className="autocomplete-empty">
                             No match found. Free typing mode active.
@@ -626,6 +681,11 @@ export const Stock: React.FC = () => {
                     )}
                   </div>
                 </div>
+                {formErrors.form && (
+                  <div style={{ color: '#de3545', fontSize: '13px', marginTop: '12px', fontWeight: '500' }}>
+                    {formErrors.form}
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" onClick={closeModal} className="btn btn-secondary">
