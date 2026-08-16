@@ -83,7 +83,11 @@ async def process_prescription(
         }
 
         if medicine_matcher is not None:
-            match_result = medicine_matcher.match(entry["name"])
+            brand_hint = entry.get("brand_hint")
+            if brand_hint:
+                match_result = medicine_matcher.match(brand_hint)
+            if not match_result.get("matched_generic_name"):
+                match_result = medicine_matcher.match(entry["name"])
 
         medicines.append(
             MedicineMatch(
