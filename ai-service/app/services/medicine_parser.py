@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 
 # General RegEx pattern for ANY medical dosage strength (number + unit)
 STRENGTH_PATTERN = re.compile(
-    r"\b([sS\d][\d\.\sOoIlLiB]{0,5})\s*(mg|g|ml|mcg|iu|%|µg|gram|milligram|milliliter)\b",
+    r"\b([sS\d][\d\.\sOoIlLiB]{0,5})\s*(mg|g|ml|mcg|iu|%|µg|sramg|ramg|gram|milligram|milliliter)\b",
     re.IGNORECASE,
 )
 
 
-def _normalize_ocr_digits(val_str: str) -> str:
+def _normalize_ocr_digits(val_str: str, unit: str = "mg") -> str:
     """General OCR digit substitution algorithm for any numeric dosage string."""
     if not val_str:
         return ""
@@ -35,6 +35,9 @@ def _normalize_ocr_digits(val_str: str) -> str:
         .replace("b", "6")
     )
     cleaned_num = re.sub(r"[^\d.]", "", val)
+    # Handle Sramg typo where 'S' is 5 and 'ramg' implies '00mg'
+    if cleaned_num == "5" and unit in ["sramg", "ramg"]:
+        cleaned_num = "500"
     return cleaned_num
 
 # Pattern for duration (e.g., "7 days", "seven days", "2 weeks", "5 days")
@@ -173,7 +176,9 @@ def _try_parse_medicine_line(line: str) -> dict | None:
     if strength_match:
         raw_num = strength_match.group(1)
         unit = strength_match.group(2).lower()
-        norm_num = _normalize_ocr_digits(raw_num)
+        if unit in ["sramg", "ramg"]:
+            unit = "mg"
+        norm_num = _normalize_ocr_digits(raw_num, unit=unit)
         if norm_num:
             strength = f"{norm_num}{unit}"
 

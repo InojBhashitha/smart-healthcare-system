@@ -94,8 +94,8 @@ async def process_prescription(
         has_strength = bool(entry.get("strength"))
         has_dosage_form = bool(entry.get("dosage_form"))
 
-        # Drop prose noise words ('million', 'spoken', 'mittled') with weak fuzzy match (< 75.0%) and no dosage strength
-        if conf < 75.0 and not has_strength and not has_dosage_form:
+        # Drop candidate entries without dosage strength if confidence is <= 75.0% or matched from prose words
+        if not has_strength and (conf <= 75.0 or name.lower() in ["million", "spoken", "mittled", "discussiblement"]):
             logger.info("Dropping low-confidence noise candidate: %s (Conf: %.1f%%)", name, conf)
             continue
 
