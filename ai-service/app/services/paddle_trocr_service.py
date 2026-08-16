@@ -53,15 +53,24 @@ class PaddleTrocrPipeline:
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """Preprocess prescription image for optimal text detection and OCR.
 
-        Applies CLAHE contrast enhancement and subtle denoising.
+        Scales small camera uploads to 1400px and applies CLAHE contrast.
         """
+        h, w = image.shape[:2]
+        max_dim = max(h, w)
+
+        if max_dim < 1200:
+            scale = 1400.0 / float(max_dim)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         else:
             gray = image.copy()
 
         # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
 
         # Convert back to RGB for TrOCR input compatibility
@@ -250,7 +259,7 @@ class PaddleTrocrPipeline:
 
         # Otsu Binarization + Morphological Dilation to form horizontal line boxes
         _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (35, 5))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 4))
         dilated = cv2.dilate(binary, kernel, iterations=2)
 
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -259,9 +268,9 @@ class PaddleTrocrPipeline:
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
             # Filter valid handwritten line dimensions
-            if w >= 40 and 14 <= h <= 120:
-                y1 = max(0, y - 4)
-                y2 = min(inner.shape[0], y + h + 4)
+            if w >= 20 and 10 <= h <= 180:
+                y1 = max(0, y - 5)
+                y2 = min(inner.shape[0], y + h + 5)
                 x1 = max(0, x - 6)
                 x2 = min(inner.shape[1], x + w + 6)
                 boxes.append((y1, y2, x1, x2))
@@ -272,7 +281,7 @@ class PaddleTrocrPipeline:
         crops = []
         for y1, y2, x1, x2 in boxes:
             crop = inner_img[y1:y2, x1:x2]
-            if crop.shape[0] >= 12 and crop.shape[1] >= 20:
+            if crop.shape[0] >= 10 and crop.shape[1] >= 15:
                 crops.append(crop)
 
         if not crops:
