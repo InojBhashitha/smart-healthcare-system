@@ -45,6 +45,7 @@ public class PrescriptionMedicineService {
             medicine.setStrength(medicineInfo.getStrength() != null ? medicineInfo.getStrength() : "");
             medicine.setInstruction(medicineInfo.getInstruction() != null ? medicineInfo.getInstruction() : "");
             medicine.setVerified(false);
+            medicine.setConfidence(medicineInfo.getConfidence());
 
             // Check if medicine exists in master database using AI-matched generic/brand names first
             Medicine matchedMedicine = null;

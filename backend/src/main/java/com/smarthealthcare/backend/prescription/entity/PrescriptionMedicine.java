@@ -25,6 +25,8 @@ public class PrescriptionMedicine {
 
     private Boolean verified = false;
 
+    private Double confidence = 0.0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "prescription_id")
     private Prescription prescription;
@@ -66,6 +68,14 @@ public class PrescriptionMedicine {
 
     public void setVerified(Boolean verified) {
         this.verified = verified;
+    }
+
+    public Double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(Double confidence) {
+        this.confidence = confidence;
     }
 
     public Prescription getPrescription() {

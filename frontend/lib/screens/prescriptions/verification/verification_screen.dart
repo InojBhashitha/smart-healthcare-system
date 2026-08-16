@@ -246,7 +246,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final genericSub = hasMatch && dbMed.genericName.isNotEmpty ? "Generic: ${dbMed.genericName}" : null;
 
     // Calculate match confidence display percentage
-    final confidenceScore = hasMatch ? 90.9 : (med.verified ? 100.0 : 65.0);
+    final confidenceScore = med.confidence > 0.0 ? med.confidence : (hasMatch ? 90.0 : (med.verified ? 100.0 : 65.0));
     final isHighConfidence = confidenceScore >= 80.0;
 
     return Container(

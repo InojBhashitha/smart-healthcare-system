@@ -6,6 +6,7 @@ class PrescriptionMedicine {
   final String strength;
   final String instruction;
   final bool verified;
+  final double confidence;
   final DatabaseMedicine? databaseMedicine;
 
   PrescriptionMedicine({
@@ -14,6 +15,7 @@ class PrescriptionMedicine {
     required this.strength,
     required this.instruction,
     required this.verified,
+    required this.confidence,
     this.databaseMedicine,
   });
 
@@ -25,6 +27,7 @@ class PrescriptionMedicine {
       strength: json["strength"] ?? "",
       instruction: json["instruction"] ?? "",
       verified: json["verified"] ?? false,
+      confidence: (json["confidence"] as num?)?.toDouble() ?? 0.0,
       databaseMedicine:
           json["databaseMedicine"] == null
               ? null
