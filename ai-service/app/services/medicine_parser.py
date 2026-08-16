@@ -14,11 +14,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Pattern for medicine strength units (including OCR typos e.g., Sramg, S00mg)
+# General RegEx pattern for ANY medical dosage strength (number + unit)
 STRENGTH_PATTERN = re.compile(
-    r"(\d+(?:\.\d+)?|[sSaA][00oO]+)\s*(mg|g|ml|mcg|iu|%|µg|sramg|ramg|caps|cap)",
+    r"\b([sS\d][\d\.\sOoIlLiB]{0,5})\s*(mg|g|ml|mcg|iu|%|µg|gram|milligram|milliliter)\b",
     re.IGNORECASE,
 )
+
+
+def _normalize_ocr_digits(val_str: str) -> str:
+    """General OCR digit substitution algorithm for any numeric dosage string."""
+    if not val_str:
+        return ""
+    val = val_str.lower().strip()
+    # Substitute common OCR letter-for-digit typos in numeric contexts
+    val = (
+        val.replace("o", "0")
+        .replace("s", "5")
+        .replace("l", "1")
+        .replace("i", "1")
+        .replace("b", "6")
+    )
+    cleaned_num = re.sub(r"[^\d.]", "", val)
+    return cleaned_num
 
 # Pattern for duration (e.g., "7 days", "seven days", "2 weeks", "5 days")
 DURATION_PATTERN = re.compile(
@@ -150,19 +167,15 @@ def _try_parse_medicine_line(line: str) -> dict | None:
     # Detect dosage form
     dosage_form = _extract_dosage_form(cleaned)
 
-    # Detect strength
-    strength_match = STRENGTH_PATTERN.search(cleaned)
+    # Detect strength using general OCR digit & unit extraction algorithm
     strength = None
+    strength_match = STRENGTH_PATTERN.search(cleaned)
     if strength_match:
-        raw_str = strength_match.group(0)
-        if re.search(r"sramg|s00|s0o|50o", raw_str, re.I):
-            strength = "500mg"
-        elif re.search(r"b25|g25", raw_str, re.I):
-            strength = "625mg"
-        elif re.search(r"a0mg|40mg", raw_str, re.I):
-            strength = "40mg"
-        else:
-            strength = raw_str
+        raw_num = strength_match.group(1)
+        unit = strength_match.group(2).lower()
+        norm_num = _normalize_ocr_digits(raw_num)
+        if norm_num:
+            strength = f"{norm_num}{unit}"
 
     # Detect quantity in line e.g. "Cap # 21"
     quantity = None
