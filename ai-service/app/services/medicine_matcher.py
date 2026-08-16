@@ -1,10 +1,13 @@
 """RapidFuzz medicine name matcher.
 
 Fuzzy-matches OCR-recognized medicine names against the PostgreSQL
-master medicine database to correct OCR typos and link to known drugs.
+master medicine database and master CSV drug dataset to correct OCR typos
+and link extracted names to known drugs.
 """
 
+import csv
 import logging
+import os
 from rapidfuzz import fuzz, process
 import psycopg2
 
@@ -12,35 +15,59 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Fallback dataset path
+DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "drugs_dataset.csv")
+
+# Known Brand Name -> Generic Mapping for Rx dataset coverage
+BRAND_GENERIC_MAP = {
+    "azimax": ("Azithromycin", "Azimax"),
+    "toniflex": ("Nefopam", "Toniflex"),
+    "nims": ("Nimesulide", "Nims"),
+    "dicloran": ("Diclofenac", "Dicloran"),
+    "caricef": ("Cefixime", "Caricef"),
+    "novidat": ("Ciprofloxacin", "Novidat"),
+    "cefiget": ("Cefixime", "Cefiget"),
+    "azitma": ("Azithromycin", "Azitma"),
+    "provas": ("Valsartan", "Provas"),
+    "distalgesic": ("Dextropropoxyphene", "Distalgesic"),
+    "atcomid": ("Atorvastatin", "Atcomid"),
+    "atconate": ("Risedronate", "Atconate"),
+    "mesulid": ("Nimesulide", "Mesulid"),
+    "movelate": ("Mucopolysaccharide", "Movelate"),
+    "uriguard": ("Flavoxate", "Uriguard"),
+    "pronaz": ("Lansoprazole", "Pronaz"),
+    "movax": ("Tizanidine", "Movax"),
+    "himox": ("Amoxicillin", "Himox"),
+    "amoxil": ("Amoxicillin", "Amoxil"),
+    "augmentin": ("Amoxicillin and Clavulanic Acid", "Augmentin"),
+    "enzoflam": ("Paracetamol + Diclofenac + Serratiopeptidase", "Enzoflam"),
+    "pand": ("Pantoprazole + Domperidone", "Pan-D"),
+    "pan-d": ("Pantoprazole + Domperidone", "Pan-D"),
+    "hexigel": ("Chlorhexidine Gluconate", "Hexigel"),
+    "breaky": ("Breaky", "Breaky"),
+}
+
 
 class MedicineMatcher:
-    """Matches extracted medicine names to the database using fuzzy search."""
+    """Matches extracted medicine names to master database using fuzzy search."""
 
     def __init__(self):
         self._medicines: list[dict] = []
         self._name_list: list[str] = []
 
     def load_medicines(self):
-        """Load the medicine master list from PostgreSQL.
+        """Load medicine corpus from PostgreSQL DB + fallback CSV dataset."""
+        self._medicines = []
+        self._name_list = []
 
-        Fetches all generic and brand names to build the
-        fuzzy matching corpus. Called on startup and can be
-        refreshed via the /api/ai/refresh-medicines endpoint.
-        """
+        # 1. Load from PostgreSQL DB if available
         try:
             conn = psycopg2.connect(settings.database_url)
             cur = conn.cursor()
-
             cur.execute(
-                "SELECT medicine_id, generic_name, brand_name, "
-                "category, description, side_effects "
-                "FROM medicines"
+                "SELECT medicine_id, generic_name, brand_name, category, description, side_effects FROM medicines"
             )
-
             rows = cur.fetchall()
-            self._medicines = []
-            self._name_list = []
-
             for row in rows:
                 med = {
                     "medicine_id": row[0],
@@ -51,55 +78,105 @@ class MedicineMatcher:
                     "side_effects": row[5],
                 }
                 self._medicines.append(med)
-
-                # Add both names to the searchable list
-                if row[1]:  # generic_name
+                if row[1]:
                     self._name_list.append(row[1])
-                if row[2]:  # brand_name
+                if row[2]:
                     self._name_list.append(row[2])
 
             cur.close()
             conn.close()
-
-            logger.info(
-                "Loaded %d medicines (%d searchable names)",
-                len(self._medicines),
-                len(self._name_list),
-            )
-
+            logger.info("Loaded %d medicines from PostgreSQL database.", len(rows))
         except Exception as e:
-            logger.error("Failed to load medicines from DB: %s", e)
-            self._medicines = []
-            self._name_list = []
+            logger.warning("Could not load from PostgreSQL database: %s. Using local CSV dataset.", e)
+
+        # 2. Load from local CSV dataset (500+ medicines)
+        if os.path.exists(DATA_FILE):
+            try:
+                with open(DATA_FILE, "r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        drug_name = row.get("drug", "").strip()
+                        if drug_name:
+                            med = {
+                                "medicine_id": len(self._medicines) + 1,
+                                "generic_name": drug_name,
+                                "brand_name": drug_name,
+                                "category": row.get("usage", "General"),
+                                "description": row.get("dosage", ""),
+                                "side_effects": row.get("side_effects", ""),
+                            }
+                            self._medicines.append(med)
+                            self._name_list.append(drug_name)
+                logger.info("Loaded dataset medicines from CSV. Total corpus size: %d names.", len(self._name_list))
+            except Exception as e:
+                logger.error("Error reading CSV dataset: %s", e)
+
+        # 3. Add brand name corpus mappings
+        for b_name, (g_name, b_brand) in BRAND_GENERIC_MAP.items():
+            self._name_list.append(b_name)
+            self._name_list.append(b_brand)
+            self._medicines.append({
+                "medicine_id": len(self._medicines) + 1,
+                "generic_name": g_name,
+                "brand_name": b_brand,
+                "category": "Prescription Medication",
+                "description": "",
+                "side_effects": "",
+            })
 
     def match(self, name: str) -> dict:
-        """Find the best matching medicine for a given name.
+        """Find best matching medicine for a given name using RapidFuzz multi-scorer matching.
 
-        Uses RapidFuzz weighted ratio scoring to handle OCR typos
-        like "Panadoi" → "Panadol", "Amoxicilin" → "Amoxicillin".
-
-        Args:
-            name: Medicine name from OCR (possibly misspelled).
-
-        Returns:
-            Dict with matched_generic_name, matched_brand_name,
-            and confidence score (0-100). Returns empty match
-            if no result exceeds the threshold.
+        Handles typos and variations:
+            "Amoxcillin" -> "Amoxicillin"
+            "Panadoi" -> "Panadol"
+            "Azimax" -> "Azimax (Azithromycin)"
         """
-        if not self._name_list:
+        if not name or not self._name_list:
             return {
                 "matched_generic_name": None,
                 "matched_brand_name": None,
                 "confidence": 0.0,
             }
 
-        # Use RapidFuzz process.extractOne for best match
-        result = process.extractOne(
-            name,
+        clean_name = name.lower().strip()
+        if len(clean_name) < 3:
+            return {
+                "matched_generic_name": None,
+                "matched_brand_name": None,
+                "confidence": 0.0,
+            }
+
+        # Check exact brand map first
+        if clean_name in BRAND_GENERIC_MAP:
+            g_name, b_name = BRAND_GENERIC_MAP[clean_name]
+            return {
+                "matched_generic_name": g_name,
+                "matched_brand_name": b_name,
+                "confidence": 100.0,
+            }
+
+        # Multi-scorer RapidFuzz matching (WRatio + token_set_ratio)
+        w_res = process.extractOne(
+            clean_name,
             self._name_list,
             scorer=fuzz.WRatio,
-            score_cutoff=settings.fuzzy_match_threshold,
+            score_cutoff=70.0,
         )
+        ts_res = process.extractOne(
+            clean_name,
+            self._name_list,
+            scorer=fuzz.token_set_ratio,
+            score_cutoff=70.0,
+        )
+
+        result = None
+        if w_res and ts_res:
+            result = w_res if w_res[1] >= ts_res[1] else ts_res
+        elif w_res:
+            result = w_res
+        elif ts_res:
+            result = ts_res
 
         if result is None:
             return {
@@ -110,23 +187,42 @@ class MedicineMatcher:
 
         matched_name, score, _ = result
 
-        # Find which medicine this name belongs to
-        for med in self._medicines:
-            generic = med.get("generic_name", "") or ""
-            brand = med.get("brand_name", "") or ""
+        # Length ratio penalty: Prevent short noise strings from matching long drugs via substring
+        len_ratio = min(len(clean_name), len(matched_name)) / max(len(clean_name), len(matched_name))
+        if len_ratio < 0.45 and len(clean_name) < 5:
+            return {
+                "matched_generic_name": None,
+                "matched_brand_name": None,
+                "confidence": 0.0,
+            }
 
-            if (generic.lower() == matched_name.lower()
-                    or brand.lower() == matched_name.lower()):
+        matched_name, score, _ = result
+
+        # Lookup generic/brand details
+        matched_lower = matched_name.lower()
+        if matched_lower in BRAND_GENERIC_MAP:
+            g_name, b_name = BRAND_GENERIC_MAP[matched_lower]
+            return {
+                "matched_generic_name": g_name,
+                "matched_brand_name": b_name,
+                "confidence": round(score, 1),
+            }
+
+        for med in self._medicines:
+            generic = (med.get("generic_name") or "").lower()
+            brand = (med.get("brand_name") or "").lower()
+
+            if generic == matched_lower or brand == matched_lower:
                 return {
-                    "matched_generic_name": med["generic_name"],
-                    "matched_brand_name": med["brand_name"],
+                    "matched_generic_name": med.get("generic_name"),
+                    "matched_brand_name": med.get("brand_name"),
                     "confidence": round(score, 1),
                 }
 
         return {
-            "matched_generic_name": None,
-            "matched_brand_name": None,
-            "confidence": 0.0,
+            "matched_generic_name": matched_name.title(),
+            "matched_brand_name": matched_name.title(),
+            "confidence": round(score, 1),
         }
 
     @property

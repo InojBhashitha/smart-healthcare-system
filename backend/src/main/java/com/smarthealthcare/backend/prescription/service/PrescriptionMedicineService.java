@@ -37,16 +37,33 @@ public class PrescriptionMedicineService {
             // Link to the prescription
             medicine.setPrescription(prescription);
 
-            // OCR data
-            medicine.setMedicineName(medicineInfo.getName());
-            medicine.setStrength(medicineInfo.getStrength());
-            medicine.setInstruction(medicineInfo.getInstruction());
-            medicine.setVerified(false);
+            // Set display name: Use AI matched brand name ONLY if confidence >= 70.0%
+            double confidence = medicineInfo.getConfidence();
+            String brandName = medicineInfo.getMatchedBrandName();
+            if (confidence >= 70.0 && brandName != null && !brandName.trim().isEmpty()) {
+                medicine.setMedicineName(brandName.trim());
+            } else {
+                medicine.setMedicineName(medicineInfo.getName() != null ? medicineInfo.getName().trim() : "");
+            }
 
-            // Check if medicine exists in master database
-            Medicine matchedMedicine =
-                    validationService.findMatchingMedicine(
-                            medicineInfo.getName());
+            medicine.setStrength(medicineInfo.getStrength() != null ? medicineInfo.getStrength() : "");
+            medicine.setInstruction(medicineInfo.getInstruction() != null ? medicineInfo.getInstruction() : "");
+            medicine.setVerified(false);
+            medicine.setConfidence(confidence);
+
+            // Link to master PostgreSQL drug entity ONLY if AI confidence >= 70.0%
+            Medicine matchedMedicine = null;
+            if (confidence >= 70.0) {
+                if (medicineInfo.getMatchedGenericName() != null) {
+                    matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedGenericName());
+                }
+                if (matchedMedicine == null && medicineInfo.getMatchedBrandName() != null) {
+                    matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getMatchedBrandName());
+                }
+                if (matchedMedicine == null) {
+                    matchedMedicine = validationService.findMatchingMedicine(medicineInfo.getName());
+                }
+            }
 
             // Save relationship if found
             medicine.setMedicine(matchedMedicine);

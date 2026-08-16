@@ -137,10 +137,12 @@ public class PrescriptionService {
         }
 
         return new PrescriptionMedicineResponse(
+                medicine.getId(),
                 medicine.getMedicineName(),
                 medicine.getStrength(),
                 medicine.getInstruction(),
                 medicine.getVerified(),
+                medicine.getConfidence(),
                 databaseMedicine
         );
     }
