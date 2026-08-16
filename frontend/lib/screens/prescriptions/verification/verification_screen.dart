@@ -240,16 +240,22 @@ class _VerificationScreenState extends State<VerificationScreen> {
     PrescriptionProvider provider,
     PrescriptionMedicine med,
   ) {
+    final dbMed = med.databaseMedicine;
+    final hasMatch = dbMed != null && (dbMed.genericName.isNotEmpty || dbMed.brandName.isNotEmpty);
+    final displayName = hasMatch ? (dbMed.brandName.isNotEmpty ? dbMed.brandName : dbMed.genericName) : med.medicineName;
+    final genericSub = hasMatch && dbMed.genericName.isNotEmpty ? "Generic: ${dbMed.genericName}" : null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: med.verified ? AppColors.primary.withValues(alpha: 0.5) : Colors.white10,
+          color: (med.verified || hasMatch) ? AppColors.primary.withValues(alpha: 0.5) : Colors.white10,
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(10),
@@ -264,24 +270,61 @@ class _VerificationScreenState extends State<VerificationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  med.medicineName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    if (hasMatch)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.greenAccent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              "Matched DB",
+                              style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
-                if (med.strength.isNotEmpty)
+                if (genericSub != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    genericSub,
+                    style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ],
+                if (med.strength.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
                     "Strength: ${med.strength}",
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
-                if (med.instruction.isNotEmpty)
+                ],
+                if (med.instruction.isNotEmpty) ...[
+                  const SizedBox(height: 2),
                   Text(
                     "Dosage: ${med.instruction}",
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
+                ],
               ],
             ),
           ),
