@@ -6,6 +6,9 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "pharmacies")
 @Getter
@@ -18,6 +21,10 @@ public class Pharmacy {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "pharmacy_id")
     private Long pharmacyId;
+
+    @OneToMany(mappedBy = "pharmacy", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<User> users;
 
     @Column(name = "name")
     private String name;
