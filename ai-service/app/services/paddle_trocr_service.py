@@ -177,7 +177,7 @@ class PaddleTrocrPipeline:
         return any(ph in lower for ph in hallucinations)
 
     def _is_blank_or_noise(self, line_crop: np.ndarray) -> bool:
-        """Check if a crop is mostly blank white background or image noise without real text ink."""
+        """Check if a crop is completely blank white background without ink."""
         if line_crop is None or line_crop.size == 0:
             return True
         if len(line_crop.shape) == 3:
@@ -187,13 +187,13 @@ class PaddleTrocrPipeline:
 
         # Check standard deviation / contrast variance
         std_dev = float(np.std(gray))
-        if std_dev < 12.0:  # Flat white/gray background
+        if std_dev < 4.0:  # Completely flat white/gray background
             return True
 
         # Check foreground ink pixel ratio
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         ink_ratio = np.sum(binary > 0) / binary.size
-        if ink_ratio < 0.03 or ink_ratio > 0.85:  # Too empty (<3% ink) or solid black (>85% ink)
+        if ink_ratio < 0.005 or ink_ratio > 0.95:  # Too empty (<0.5% ink) or solid black (>95% ink)
             return True
 
         return False

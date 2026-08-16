@@ -62,10 +62,10 @@ class OcrService:
         if engine_clean == "paddle_trocr" and self.paddle_trocr_pipeline.is_loaded:
             try:
                 text = self.paddle_trocr_pipeline.process_prescription(image)
-                if text:
-                    return text
+                return text if text else ""
             except Exception as e:
-                logger.warning("PaddleOCR+TrOCR pipeline failed, falling back to hybrid: %s", e)
+                logger.warning("PaddleOCR+TrOCR pipeline error: %s", e)
+                return ""
 
         # Baseline Hybrid Tesseract + TrOCR
         return self._recognize_hybrid_tesseract(image)
