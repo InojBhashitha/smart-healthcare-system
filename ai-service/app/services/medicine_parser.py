@@ -111,9 +111,15 @@ def parse_medicines(raw_text: str) -> list[dict]:
                 pending_brand = None
             current_medicine = medicine
             medicines.append(current_medicine)
-        elif current_medicine and _is_instruction_line(line):
-            existing = current_medicine.get("instruction", "")
-            full_inst = f"{existing} {line}".strip() if existing else line
+        elif current_medicine:
+            # Extract strength if missing in main line e.g. "500mg Cap # 21"
+            str_match = STRENGTH_PATTERN.search(line)
+            if str_match and not current_medicine.get("strength"):
+                current_medicine["strength"] = str_match.group(0)
+
+            # Append instruction/dosage details
+            existing = current_medicine.get("instruction") or ""
+            full_inst = f"{existing} {line}".strip()
             current_medicine["instruction"] = full_inst
             _enrich_structured_fields(current_medicine, full_inst)
 
@@ -123,7 +129,9 @@ def parse_medicines(raw_text: str) -> list[dict]:
 
 def _try_parse_medicine_line(line: str) -> dict | None:
     """Try to parse a single line as a medicine entry with structured fields."""
-    cleaned = re.sub(r"^[\d#]+\s*[.):\-]?\s*", "", line).strip()
+    # Only strip item numbers e.g. "1." or "2)" or "#1." (not dosage numbers like 500mg)
+    cleaned = re.sub(r"^\d+[\s.):\-]+\s*", "", line).strip()
+    cleaned = re.sub(r"^#\d+[\s.):\-]*\s*", "", cleaned).strip()
     if not cleaned:
         return None
 
