@@ -39,6 +39,11 @@ BRAND_GENERIC_MAP = {
     "movax": ("Tizanidine", "Movax"),
     "himox": ("Amoxicillin", "Himox"),
     "ethmiox": ("Amoxicillin", "Himox"),
+    "augmentin": ("Amoxicillin and Clavulanic Acid", "Augmentin"),
+    "enzoflam": ("Paracetamol + Diclofenac + Serratiopeptidase", "Enzoflam"),
+    "pand": ("Pantoprazole + Domperidone", "Pan-D"),
+    "pan-d": ("Pantoprazole + Domperidone", "Pan-D"),
+    "hexigel": ("Chlorhexidine Gluconate", "Hexigel"),
     "breaky": ("Breaky", "Breaky"),
     "bisleri": ("Bisleri", "Bisleri"),
 }
