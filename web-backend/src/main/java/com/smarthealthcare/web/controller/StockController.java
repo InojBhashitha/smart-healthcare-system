@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/web/stocks")
+@RequestMapping("/api/web/stock")
 @RequiredArgsConstructor
 public class StockController {
 
