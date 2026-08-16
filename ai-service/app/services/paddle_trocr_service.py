@@ -248,22 +248,18 @@ class PaddleTrocrPipeline:
 
         h_img, w_img = image.shape[:2]
 
-        # Ignore outer 3% margin to skip scanner borders
-        y_start = int(h_img * 0.03)
-        y_end = int(h_img * 0.97)
-        x_start = int(w_img * 0.03)
-        x_end = int(w_img * 0.97)
+        # Ignore outer 4% margin to skip camera scanner frame lines
+        y_start = int(h_img * 0.04)
+        y_end = int(h_img * 0.96)
+        x_start = int(w_img * 0.04)
+        x_end = int(w_img * 0.96)
 
         inner = gray[y_start:y_end, x_start:x_end]
         inner_img = image[y_start:y_end, x_start:x_end]
 
-        # CLAHE contrast enhancement
-        clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-        enhanced = clahe.apply(inner)
-
-        # Otsu Binarization + Morphological Dilation to form horizontal line boxes
-        _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 4))
+        # Otsu Binarization directly on single-pass preprocessed grayscale
+        _, binary = cv2.threshold(inner, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (40, 5))
         dilated = cv2.dilate(binary, kernel, iterations=2)
 
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -272,7 +268,7 @@ class PaddleTrocrPipeline:
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
             # Filter valid handwritten line dimensions
-            if w >= 20 and 10 <= h <= 180:
+            if w >= 35 and 12 <= h <= 180:
                 y1 = max(0, y - 5)
                 y2 = min(inner.shape[0], y + h + 5)
                 x1 = max(0, x - 6)
