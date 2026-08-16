@@ -161,7 +161,7 @@ def _try_parse_medicine_line(line: str) -> dict | None:
     if _is_instruction_line(cleaned) and not STRENGTH_PATTERN.search(cleaned):
         return None
 
-    if re.search(r"\b(tel|phone|mbbs|slmc|reg|colombo|street|road|city|lanka|date|age|gender|physician|lic|ptr|s2)\b", lower_line):
+    if re.search(r"\b(tel|phone|mbbs|slmc|reg|colombo|street|road|city|lanka|date|age|gender|sex|physician|lic|ptr|s2|address|name)\b", lower_line):
         return None
 
     # Detect dosage form
