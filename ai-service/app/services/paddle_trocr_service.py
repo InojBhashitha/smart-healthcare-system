@@ -171,7 +171,9 @@ class PaddleTrocrPipeline:
             "united states", "housewife", "housewives", "beginning of the beginning",
             "issuing expertise", "quality of the most", "department of health",
             "makati city", "maximum long letter", "sing- recap", "exonday",
-            "successful success", "today . june", "delayed to"
+            "successful success", "today . june", "delayed to", "delegates",
+            "documented", "legend", "market", "application", "chronicling",
+            "unsigned's", "russo"
         ]
         lower = text.lower()
         return any(ph in lower for ph in hallucinations)
@@ -187,13 +189,13 @@ class PaddleTrocrPipeline:
 
         # Check standard deviation / contrast variance
         std_dev = float(np.std(gray))
-        if std_dev < 4.0:  # Completely flat white/gray background
+        if std_dev < 4.0:
             return True
 
         # Check foreground ink pixel ratio
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         ink_ratio = np.sum(binary > 0) / binary.size
-        if ink_ratio < 0.005 or ink_ratio > 0.95:  # Too empty (<0.5% ink) or solid black (>95% ink)
+        if ink_ratio < 0.005 or ink_ratio > 0.95:
             return True
 
         return False
@@ -206,37 +208,61 @@ class PaddleTrocrPipeline:
         from collections import Counter
         counts = Counter(words)
         for w, c in counts.items():
-            if len(w) >= 3 and c >= 3:  # Word of length 3+ repeated 3+ times in single line
+            if len(w) >= 3 and c >= 3:
                 return True
         return False
 
     def _fallback_line_segmenter(self, image: np.ndarray) -> list[np.ndarray]:
-        """Fallback horizontal projection line segmenter."""
+        """Morphological contour line segmenter designed for prescription handwriting."""
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         else:
             gray = image.copy()
 
-        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        h_proj = np.sum(binary, axis=1)
-        threshold = np.max(h_proj) * 0.08
+        h_img, w_img = image.shape[:2]
 
-        in_line = False
-        start = 0
+        # Ignore outer 3% margin to skip scanner borders
+        y_start = int(h_img * 0.03)
+        y_end = int(h_img * 0.97)
+        x_start = int(w_img * 0.03)
+        x_end = int(w_img * 0.97)
+
+        inner = gray[y_start:y_end, x_start:x_end]
+        inner_img = image[y_start:y_end, x_start:x_end]
+
+        # CLAHE contrast enhancement
+        clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+        enhanced = clahe.apply(inner)
+
+        # Otsu Binarization + Morphological Dilation to form horizontal line boxes
+        _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (35, 5))
+        dilated = cv2.dilate(binary, kernel, iterations=2)
+
+        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        boxes = []
+        for c in contours:
+            x, y, w, h = cv2.boundingRect(c)
+            # Filter valid handwritten line dimensions
+            if w >= 40 and 14 <= h <= 120:
+                y1 = max(0, y - 4)
+                y2 = min(inner.shape[0], y + h + 4)
+                x1 = max(0, x - 6)
+                x2 = min(inner.shape[1], x + w + 6)
+                boxes.append((y1, y2, x1, x2))
+
+        # Sort lines top-to-bottom
+        boxes.sort(key=lambda b: b[0])
+
         crops = []
-        h = image.shape[0]
-
-        for i, val in enumerate(h_proj):
-            if val > threshold and not in_line:
-                start = i
-                in_line = True
-            elif val <= threshold and in_line:
-                in_line = False
-                y1 = max(0, start - 4)
-                y2 = min(h, i + 4)
-                if 14 <= (y2 - y1) <= 140:
-                    crops.append(image[y1:y2, :])
+        for y1, y2, x1, x2 in boxes:
+            crop = inner_img[y1:y2, x1:x2]
+            if crop.shape[0] >= 12 and crop.shape[1] >= 20:
+                crops.append(crop)
 
         if not crops:
             crops.append(image)
+
+        logger.info("Morphological segmenter extracted %d clean text line crops.", len(crops))
         return crops
