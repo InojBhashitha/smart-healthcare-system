@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -21,16 +23,13 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   final TextEditingController _searchController = TextEditingController();
+  final MapController _mapController = MapController();
 
-  // Colombo Bounding Box Constants (Targeting Central Colombo 02, 03, 04, 07)
-  static const double minLat = 6.8750; // Bambalapitiya / Havelock South
-  static const double maxLat = 6.9450; // Colombo Fort North
-  static const double minLng = 79.8400; // West Coastline (Galle Face)
-  static const double maxLng = 79.8850; // East Inland (Ward Place / Cinnamon Gardens)
+  // Locations
+  static const LatLng colomboLocation = LatLng(6.9147, 79.8672); // Colombo 07
+  static const LatLng sriLankaCenter = LatLng(7.8731, 80.7718); // Central Sri Lanka
 
-  // User Default Location: Colombo 07 (Town Hall)
-  static const double userLat = 6.9147;
-  static const double userLng = 79.8672;
+  bool _isSriLankaOverview = false;
 
   @override
   void initState() {
@@ -44,11 +43,10 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Initial search & load active treatment doses
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<PharmacyProvider>();
       if (provider.pharmacies.isEmpty) {
-        provider.searchPharmacies(lat: userLat, lng: userLng);
+        provider.searchPharmacies(lat: colomboLocation.latitude, lng: colomboLocation.longitude);
       }
       final treatmentProvider = context.read<TreatmentPlanProvider>();
       if (treatmentProvider.todayDoses.isEmpty) {
@@ -61,7 +59,18 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
   void dispose() {
     _pulseController.dispose();
     _searchController.dispose();
+    _mapController.dispose();
     super.dispose();
+  }
+
+  void _zoomToColombo() {
+    setState(() => _isSriLankaOverview = false);
+    _mapController.move(colomboLocation, 13.5);
+  }
+
+  void _zoomToSriLanka() {
+    setState(() => _isSriLankaOverview = true);
+    _mapController.move(sriLankaCenter, 7.2);
   }
 
   @override
@@ -74,7 +83,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
         return RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: const Color(0xFF0F172A),
-          onRefresh: () => provider.searchPharmacies(lat: userLat, lng: userLng),
+          onRefresh: () => provider.searchPharmacies(lat: colomboLocation.latitude, lng: colomboLocation.longitude),
           child: ListView(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
@@ -93,16 +102,16 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               _buildFilterChips(provider),
               const SizedBox(height: AppSpacing.md),
 
-              // 4. Interactive Colombo Radar Map Card
-              _buildColomboMapCard(context, provider, pharmacies, selectedId),
+              // 4. Interactive Real Map Card (Zoomable Whole Sri Lanka & Street Level)
+              _buildInteractiveMapCard(context, provider, pharmacies, selectedId),
               const SizedBox(height: AppSpacing.lg),
 
-              // 5. Section Title: Main Partner Pharmacies List
+              // 5. Section Title: Partner Pharmacies List
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "VERIFIED PHARMACIES (${pharmacies.length})",
+                    "PARTNER PHARMACIES (${pharmacies.length})",
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -111,7 +120,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
                     ),
                   ),
                   Text(
-                    "Connected to Live Dashboard",
+                    "Live Stock • Colombo Metro",
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.cyan.shade400,
@@ -165,7 +174,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               ),
             ],
           ),
-          child: const Icon(Icons.radar_rounded, color: Colors.white, size: 22),
+          child: const Icon(Icons.map_rounded, color: Colors.white, size: 22),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -175,7 +184,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               const Row(
                 children: [
                   Text(
-                    "Colombo Pharmacy Radar",
+                    "Pharmacy Map Radar",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -188,26 +197,11 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               ),
               const SizedBox(height: 2),
               Text(
-                "3 Main Partner Branches • Live Stock",
+                "Whole Sri Lanka & Metro Zoom • 3 Verified Branches",
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
               ),
             ],
           ),
-        ),
-        IconButton(
-          tooltip: "Recenter on Colombo 07",
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: const Icon(Icons.my_location_rounded, color: AppColors.secondary, size: 18),
-          ),
-          onPressed: () {
-            provider.searchPharmacies(lat: userLat, lng: userLng);
-          },
         ),
       ],
     );
@@ -301,8 +295,8 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     );
   }
 
-  // --- 4. COLOMBO RADAR MAP CARD ---
-  Widget _buildColomboMapCard(
+  // --- 4. INTERACTIVE REAL SRI LANKA MAP CARD ---
+  Widget _buildInteractiveMapCard(
     BuildContext context,
     PharmacyProvider provider,
     List<dynamic> pharmacies,
@@ -311,8 +305,110 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, _) {
+        // Build Markers for User & Pharmacies
+        final List<Marker> markers = [];
+
+        // User Marker (Colombo 07)
+        markers.add(
+          Marker(
+            point: colomboLocation,
+            width: 50,
+            height: 50,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF38BDF8),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black45, blurRadius: 4),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        // Pharmacy Branch Markers
+        for (final p in pharmacies) {
+          final double lat = (p['latitude'] as num? ?? colomboLocation.latitude).toDouble();
+          final double lng = (p['longitude'] as num? ?? colomboLocation.longitude).toDouble();
+          final int pId = p['pharmacyId'] ?? 0;
+          final String name = (p['name'] ?? 'Pharmacy').toString().split(' ').first;
+          final String stockStatus = p['stockStatus'] ?? 'IN_STOCK';
+          final bool isSelected = pId == selectedId;
+
+          final pinColor = stockStatus == 'IN_STOCK'
+              ? const Color(0xFF10B981)
+              : (stockStatus == 'LOW_STOCK' ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
+
+          markers.add(
+            Marker(
+              point: LatLng(lat, lng),
+              width: isSelected ? 80 : 70,
+              height: isSelected ? 65 : 55,
+              child: GestureDetector(
+                onTap: () {
+                  provider.selectPharmacy(pId);
+                  _mapController.move(LatLng(lat, lng), 14.5);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: isSelected ? Colors.white : pinColor.withValues(alpha: 0.5),
+                          width: isSelected ? 1.5 : 0.8,
+                        ),
+                        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                      ),
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSelected ? 10 : 8.5,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Icon(
+                      Icons.location_on_rounded,
+                      color: pinColor,
+                      size: isSelected ? 30 : 24,
+                      shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
         return Container(
-          height: 250,
+          height: 270,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.large),
             border: Border.all(
@@ -331,63 +427,85 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
             borderRadius: BorderRadius.circular(AppRadius.large - 1.5),
             child: Stack(
               children: [
-                // Colombo Canvas Paint
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _ColomboMapPainter(
-                      userLat: userLat,
-                      userLng: userLng,
-                      pharmacies: pharmacies,
-                      selectedPharmacyId: selectedId,
-                      pulseScale: _pulseAnimation.value,
-                      minLat: minLat,
-                      maxLat: maxLat,
-                      minLng: minLng,
-                      maxLng: maxLng,
-                    ),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapUp: (details) {
-                        _handleMapTap(details.localPosition, pharmacies, context);
-                      },
-                    ),
+                // 1. Real Interactive Flutter Map Tile Layer
+                FlutterMap(
+                  mapController: _mapController,
+                  options: const MapOptions(
+                    initialCenter: colomboLocation,
+                    initialZoom: 13.5,
+                    minZoom: 6.0, // Allows zooming out to whole Sri Lanka & Indian Ocean
+                    maxZoom: 18.5, // Allows zooming in to street level
                   ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.smart_healthcare_app',
+                    ),
+                    MarkerLayer(markers: markers),
+                  ],
                 ),
 
-                // Top Map Overlay Badge
+                // 2. Quick Zoom Toggle Controls (Whole Sri Lanka 🇱🇰 vs Colombo 🎯)
                 Positioned(
                   top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.touch_app_rounded, color: Color(0xFF38BDF8), size: 12),
-                        SizedBox(width: 4),
-                        Text(
-                          "Tap pin to inspect pharmacy",
-                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                  right: 10,
+                  child: Column(
+                    children: [
+                      InkWell(
+                        onTap: _zoomToColombo,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: !_isSriLankaOverview ? AppColors.primary : const Color(0xFF0F172A).withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.my_location_rounded, color: Colors.white, size: 13),
+                              SizedBox(width: 4),
+                              Text("Colombo", style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _zoomToSriLanka,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: _isSriLankaOverview ? AppColors.primary : const Color(0xFF0F172A).withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text("🇱🇰", style: TextStyle(fontSize: 12)),
+                              SizedBox(width: 4),
+                              Text("Sri Lanka", style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
-                // Map Legend
+                // 3. Map Legend Badge (Bottom Left)
                 Positioned(
                   bottom: 8,
-                  right: 8,
+                  left: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -436,6 +554,8 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     final String hours = pharmacy['operatingHours'] ?? '8:00 AM - 10:00 PM';
     final bool delivery = pharmacy['deliveryAvailable'] == true;
     final List<dynamic> stockItems = pharmacy['stockItems'] as List? ?? [];
+    final double lat = (pharmacy['latitude'] as num? ?? colomboLocation.latitude).toDouble();
+    final double lng = (pharmacy['longitude'] as num? ?? colomboLocation.longitude).toDouble();
 
     final bool isAvailable = stockStatus == 'IN_STOCK';
     final bool isLow = stockStatus == 'LOW_STOCK';
@@ -449,7 +569,10 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: InkWell(
-        onTap: () => provider.selectPharmacy(pharmacyId),
+        onTap: () {
+          provider.selectPharmacy(pharmacyId);
+          _mapController.move(LatLng(lat, lng), 15.0);
+        },
         borderRadius: BorderRadius.circular(AppRadius.medium),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -686,30 +809,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     );
   }
 
-  // --- MAP TAP HANDLER ---
-  void _handleMapTap(Offset tapPos, List<dynamic> pharmacies, BuildContext context) {
-    final provider = context.read<PharmacyProvider>();
-    const double cardWidth = 350;
-    const double cardHeight = 250;
-
-    for (final p in pharmacies) {
-      final double lat = (p['latitude'] as num? ?? userLat).toDouble();
-      final double lng = (p['longitude'] as num? ?? userLng).toDouble();
-
-      final double normX = (lng - minLng) / (maxLng - minLng);
-      final double normY = 1.0 - (lat - minLat) / (maxLat - minLat);
-
-      final double pinX = normX * cardWidth;
-      final double pinY = normY * cardHeight;
-
-      final double dist = (tapPos - Offset(pinX, pinY)).distance;
-      if (dist < 45) {
-        provider.selectPharmacy(p['pharmacyId']);
-        break;
-      }
-    }
-  }
-
   // --- DYNAMIC PRESCRIBED MEDICINES RESERVATION BOTTOM SHEET ---
   void _showReservationSheet(BuildContext context, dynamic pharmacy, PharmacyProvider provider) {
     final int pharmacyId = pharmacy['pharmacyId'] ?? 0;
@@ -776,7 +875,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        // Calculate Total estimated cost and availability
         double totalCost = 0.0;
         int inStockCount = 0;
 
@@ -803,7 +901,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
 
           if (!isOut) {
             inStockCount++;
-            totalCost += (price * 21); // standard 21-unit course
+            totalCost += (price * 21);
           }
 
           final statusColor = isInStock
@@ -919,7 +1017,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               child: ListView(
                 controller: scrollController,
                 children: [
-                  // Drag Handle
                   Center(
                     child: Container(
                       width: 40,
@@ -1040,7 +1137,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
                   ),
                   const SizedBox(height: 8),
 
-                  // Prescribed Medicine Stock Cards
                   ...medCards,
 
                   const SizedBox(height: 14),
@@ -1190,197 +1286,5 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
         ],
       ),
     );
-  }
-}
-
-// --- COLOMBO MAP CUSTOM PAINTER ---
-class _ColomboMapPainter extends CustomPainter {
-  final double userLat;
-  final double userLng;
-  final List<dynamic> pharmacies;
-  final int? selectedPharmacyId;
-  final double pulseScale;
-  final double minLat;
-  final double maxLat;
-  final double minLng;
-  final double maxLng;
-
-  _ColomboMapPainter({
-    required this.userLat,
-    required this.userLng,
-    required this.pharmacies,
-    required this.selectedPharmacyId,
-    required this.pulseScale,
-    required this.minLat,
-    required this.maxLat,
-    required this.minLng,
-    required this.maxLng,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // 1. Draw Colombo Coastal Ocean Gradient (West Coast)
-    final oceanPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF031525), Color(0xFF051B2E), Color(0xFF070B19)],
-        stops: [0.0, 0.25, 0.55],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), oceanPaint);
-
-    // 2. Draw Colombo Coastline Path
-    final coastPaint = Paint()
-      ..color = const Color(0xFF0284C7).withValues(alpha: 0.35)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-
-    final coastPath = Path()
-      ..moveTo(w * 0.12, 0)
-      ..cubicTo(w * 0.16, h * 0.20, w * 0.12, h * 0.45, w * 0.15, h * 0.70)
-      ..cubicTo(w * 0.17, h * 0.85, w * 0.18, h * 0.95, w * 0.20, h);
-    canvas.drawPath(coastPath, coastPaint);
-
-    // 3. Draw Metro Road Grid Lines
-    final roadPaint = Paint()
-      ..color = const Color(0xFF1E293B).withValues(alpha: 0.6)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    final majorRoadPaint = Paint()
-      ..color = const Color(0xFF334155).withValues(alpha: 0.8)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    // Galle Road (A2) along coast
-    final galleRoad = Path()
-      ..moveTo(w * 0.22, 0)
-      ..lineTo(w * 0.26, h);
-    canvas.drawPath(galleRoad, majorRoadPaint);
-
-    // R.A. De Mel Mawatha (Duplication Road)
-    final duplicationRoad = Path()
-      ..moveTo(w * 0.35, 0)
-      ..lineTo(w * 0.38, h);
-    canvas.drawPath(duplicationRoad, roadPaint);
-
-    // Ward Place / High Level
-    final wardPlace = Path()
-      ..moveTo(w * 0.45, h * 0.25)
-      ..lineTo(w * 0.85, h * 0.85);
-    canvas.drawPath(wardPlace, majorRoadPaint);
-
-    // Cross connecting roads (Dickmans Rd, Bullers Rd, Dharmapala Mawatha)
-    for (double i = 0.20; i < 0.90; i += 0.22) {
-      canvas.drawLine(
-        Offset(w * 0.15, h * i),
-        Offset(w * 0.90, h * i + 10),
-        roadPaint,
-      );
-    }
-
-    // 4. Draw Colombo District Landmark Labels
-    _drawLandmark(canvas, Offset(w * 0.28, h * 0.10), "Colombo Fort", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.22, h * 0.24), "Galle Face", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.52, h * 0.32), "Colombo 07 (Ward Pl)", const Color(0xFF38BDF8));
-    _drawLandmark(canvas, Offset(w * 0.28, h * 0.50), "Colombo 03 (Kollupitiya)", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.30, h * 0.78), "Colombo 04 (Bambalapitiya)", const Color(0xFF64748B));
-
-    // 5. Draw User Location Radar Beacon
-    final userX = ((userLng - minLng) / (maxLng - minLng)) * w;
-    final userY = (1.0 - (userLat - minLat) / (maxLat - minLat)) * h;
-
-    // Pulsing Radar Rings
-    final radarRingPaint = Paint()
-      ..color = const Color(0xFF0284C7).withValues(alpha: 0.25)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    canvas.drawCircle(Offset(userX, userY), 22 * pulseScale, radarRingPaint);
-
-    // User Blue Dot
-    final userDotPaint = Paint()..color = const Color(0xFF38BDF8);
-    canvas.drawCircle(Offset(userX, userY), 6, userDotPaint);
-    canvas.drawCircle(Offset(userX, userY), 9, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.8);
-
-    // 6. Draw Pharmacy Pins
-    for (final p in pharmacies) {
-      final double lat = (p['latitude'] as num? ?? userLat).toDouble();
-      final double lng = (p['longitude'] as num? ?? userLng).toDouble();
-      final int pId = p['pharmacyId'] ?? 0;
-      final String stockStatus = p['stockStatus'] ?? 'IN_STOCK';
-      final bool isSelected = pId == selectedPharmacyId;
-
-      final double px = ((lng - minLng) / (maxLng - minLng)) * w;
-      final double py = (1.0 - (lat - minLat) / (maxLat - minLat)) * h;
-
-      final pinColor = stockStatus == 'IN_STOCK'
-          ? const Color(0xFF10B981)
-          : (stockStatus == 'LOW_STOCK' ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
-
-      // Glow when selected
-      if (isSelected) {
-        canvas.drawCircle(
-          Offset(px, py),
-          14 * pulseScale,
-          Paint()..color = pinColor.withValues(alpha: 0.4),
-        );
-      }
-
-      // Outer Ring
-      canvas.drawCircle(
-        Offset(px, py),
-        isSelected ? 8.5 : 6.5,
-        Paint()..color = Colors.white,
-      );
-
-      // Inner Core
-      canvas.drawCircle(
-        Offset(px, py),
-        isSelected ? 6.5 : 4.5,
-        Paint()..color = pinColor,
-      );
-
-      // Pin Label
-      final name = (p['name'] ?? 'Pharmacy').toString().split(' ').first;
-      final textSpan = TextSpan(
-        text: name,
-        style: TextStyle(
-          color: isSelected ? Colors.white : Colors.grey.shade300,
-          fontSize: isSelected ? 9.5 : 8.0,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          backgroundColor: const Color(0xFF0F172A).withValues(alpha: 0.85),
-        ),
-      );
-      final textPainter = TextPainter(
-        text: textSpan,
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textPainter.paint(canvas, Offset(px - (textPainter.width / 2), py + 8));
-    }
-  }
-
-  void _drawLandmark(Canvas canvas, Offset pos, String text, Color color) {
-    final span = TextSpan(
-      text: text,
-      style: TextStyle(
-        color: color.withValues(alpha: 0.7),
-        fontSize: 8.5,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.4,
-      ),
-    );
-    final painter = TextPainter(
-      text: span,
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(canvas, pos);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ColomboMapPainter oldDelegate) {
-    return oldDelegate.pulseScale != pulseScale ||
-        oldDelegate.selectedPharmacyId != selectedPharmacyId ||
-        oldDelegate.pharmacies != pharmacies;
   }
 }
