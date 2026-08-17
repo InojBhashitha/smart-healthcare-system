@@ -42,6 +42,14 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     _pulseAnimation = Tween<double>(begin: 0.85, end: 1.25).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // Initial search if empty
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<PharmacyProvider>();
+      if (provider.pharmacies.isEmpty) {
+        provider.searchPharmacies(lat: userLat, lng: userLng);
+      }
+    });
   }
 
   @override
@@ -57,81 +65,77 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
       builder: (context, provider, child) {
         final pharmacies = provider.filteredPharmacies;
         final selectedId = provider.selectedPharmacyId;
-        final selectedPharmacy = pharmacies.firstWhere(
-          (p) => p['pharmacyId'] == selectedId,
-          orElse: () => pharmacies.isNotEmpty ? pharmacies.first : null,
-        );
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF070B19),
-          body: Stack(
+        return RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: const Color(0xFF0F172A),
+          onRefresh: () => provider.searchPharmacies(lat: userLat, lng: userLng),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
             children: [
-              // 1. Interactive Colombo Map Canvas (Background)
-              Positioned.fill(
-                child: InteractiveViewer(
-                  boundaryMargin: const EdgeInsets.all(80),
-                  minScale: 0.8,
-                  maxScale: 2.5,
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: double.infinity,
-                    child: CustomPaint(
-                      painter: _ColomboMapPainter(
-                        userLat: userLat,
-                        userLng: userLng,
-                        pharmacies: pharmacies,
-                        selectedPharmacyId: selectedId,
-                        pulseScale: _pulseAnimation.value,
-                        minLat: minLat,
-                        maxLat: maxLat,
-                        minLng: minLng,
-                        maxLng: maxLng,
-                      ),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTapUp: (details) {
-                          _handleMapTap(details.localPosition, pharmacies, context);
-                        },
-                      ),
+              // 1. Header
+              _buildHeader(context, provider),
+              const SizedBox(height: AppSpacing.md),
+
+              // 2. Search Bar
+              _buildSearchBar(provider),
+              const SizedBox(height: AppSpacing.sm),
+
+              // 3. Filter Chips
+              _buildFilterChips(provider),
+              const SizedBox(height: AppSpacing.md),
+
+              // 4. Interactive Colombo Radar Map Card
+              _buildColomboMapCard(context, provider, pharmacies, selectedId),
+              const SizedBox(height: AppSpacing.lg),
+
+              // 5. Section Title: Partner Pharmacies List
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "PARTNER PHARMACIES (${pharmacies.length})",
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDisabled,
+                      letterSpacing: 1.2,
                     ),
                   ),
-                ),
-              ),
-
-              // 2. Top Header & Search Overlay
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
+                  Text(
+                    "Live Colombo Radar",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.cyan.shade400,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildHeader(context, provider),
-                      const SizedBox(height: AppSpacing.sm),
-                      _buildSearchBar(provider),
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildFilterChips(provider),
-                    ],
-                  ),
-                ),
+                ],
               ),
+              const SizedBox(height: AppSpacing.sm),
 
-              // 3. Floating Bottom Pharmacy Detail Card & Actions
-              if (selectedPharmacy != null)
-                Positioned(
-                  bottom: AppSpacing.md,
-                  left: AppSpacing.md,
-                  right: AppSpacing.md,
-                  child: _buildFloatingPharmacyCard(context, selectedPharmacy, provider),
-                ),
-
-              // 4. Loading Spinner Indicator
+              // 6. Pharmacy Cards List
               if (provider.isLoading)
                 const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
+                  child: Padding(
+                    padding: EdgeInsets.all(40.0),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              else if (pharmacies.isEmpty)
+                _buildEmptyState()
+              else
+                ...pharmacies.map((pharmacy) => _buildPharmacyCard(
+                      context: context,
+                      pharmacy: pharmacy,
+                      isSelected: pharmacy['pharmacyId'] == selectedId,
+                      provider: provider,
+                    )),
+
+              const SizedBox(height: 80), // Bottom padding for FAB/Navbar
             ],
           ),
         );
@@ -139,91 +143,97 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     );
   }
 
-  // --- TOP HEADER ---
+  // --- 1. HEADER ---
   Widget _buildHeader(BuildContext context, PharmacyProvider provider) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: AppGradients.primary,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.radar_rounded, color: Colors.white, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Text(
+                    "Colombo Pharmacy Radar",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  Icon(Icons.verified_rounded, color: Color(0xFF38BDF8), size: 16),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                "Live stock synced • Colombo Metro",
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: "Recenter on Colombo 07",
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: const Icon(Icons.my_location_rounded, color: AppColors.secondary, size: 18),
+          ),
+          onPressed: () {
+            provider.searchPharmacies(lat: userLat, lng: userLng);
+          },
+        ),
+      ],
+    );
+  }
+
+  // --- 2. SEARCH BAR ---
+  Widget _buildSearchBar(PharmacyProvider provider) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.90),
+        color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(AppRadius.medium),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black45,
-            blurRadius: 15,
-            offset: Offset(0, 4),
+            color: Colors.black26,
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: AppGradients.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.radar_rounded, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Row(
-                  children: [
-                    Text(
-                      "Colombo Pharmacy Radar",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Icon(Icons.verified_rounded, color: Color(0xFF38BDF8), size: 14),
-                  ],
-                ),
-                Text(
-                  "Live stock synced • Colombo Metro",
-                  style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.my_location_rounded, color: AppColors.secondary, size: 20),
-            onPressed: () {
-              provider.searchPharmacies(lat: userLat, lng: userLng);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- SEARCH BAR ---
-  Widget _buildSearchBar(PharmacyProvider provider) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.90),
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: TextField(
         controller: _searchController,
-        style: const TextStyle(color: Colors.white, fontSize: 13),
-        onChanged: (value) {
-          provider.setSearchQuery(value);
-        },
+        style: const TextStyle(color: Colors.white, fontSize: 13.5),
+        onChanged: (value) => provider.setSearchQuery(value),
         decoration: InputDecoration(
-          hintText: "Search pharmacy, medicine or district (e.g. Colombo 03)...",
-          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.secondary, size: 18),
+          hintText: "Search pharmacy, medicine or area (e.g. Colombo 03)...",
+          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 12.5),
+          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.secondary, size: 20),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, color: Colors.grey, size: 16),
+                  icon: const Icon(Icons.clear_rounded, color: Colors.grey, size: 18),
                   onPressed: () {
                     _searchController.clear();
                     provider.setSearchQuery("");
@@ -231,13 +241,13 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         ),
       ),
     );
   }
 
-  // --- FILTER CHIPS ---
+  // --- 3. FILTER CHIPS ---
   Widget _buildFilterChips(PharmacyProvider provider) {
     final active = provider.activeFilter;
     return SingleChildScrollView(
@@ -262,14 +272,14 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
         onTap: () => provider.setActiveFilter(key),
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.85)
-                : const Color(0xFF1E293B).withValues(alpha: 0.80),
+                ? AppColors.primary
+                : const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? AppColors.secondary : Colors.white.withValues(alpha: 0.05),
+              color: isSelected ? AppColors.secondary : Colors.white.withValues(alpha: 0.08),
               width: 1,
             ),
           ),
@@ -277,7 +287,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
             label,
             style: TextStyle(
               color: isSelected ? Colors.white : Colors.grey.shade300,
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -286,9 +296,133 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     );
   }
 
-  // --- FLOATING PHARMACY CARD ---
-  Widget _buildFloatingPharmacyCard(
-      BuildContext context, dynamic pharmacy, PharmacyProvider provider) {
+  // --- 4. COLOMBO RADAR MAP CARD ---
+  Widget _buildColomboMapCard(
+    BuildContext context,
+    PharmacyProvider provider,
+    List<dynamic> pharmacies,
+    int? selectedId,
+  ) {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, _) {
+        return Container(
+          height: 250,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(
+              color: AppColors.secondary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.secondary.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.large - 1.5),
+            child: Stack(
+              children: [
+                // Colombo Canvas Paint
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _ColomboMapPainter(
+                      userLat: userLat,
+                      userLng: userLng,
+                      pharmacies: pharmacies,
+                      selectedPharmacyId: selectedId,
+                      pulseScale: _pulseAnimation.value,
+                      minLat: minLat,
+                      maxLat: maxLat,
+                      minLng: minLng,
+                      maxLng: maxLng,
+                    ),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapUp: (details) {
+                        _handleMapTap(details.localPosition, pharmacies, context);
+                      },
+                    ),
+                  ),
+                ),
+
+                // Top Map Overlay Badge
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.touch_app_rounded, color: Color(0xFF38BDF8), size: 12),
+                        SizedBox(width: 4),
+                        Text(
+                          "Tap any pin to inspect stock",
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Map Legend
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildLegendDot(const Color(0xFF10B981), "In Stock"),
+                        const SizedBox(width: 8),
+                        _buildLegendDot(const Color(0xFFF59E0B), "Low"),
+                        const SizedBox(width: 8),
+                        _buildLegendDot(const Color(0xFFEF4444), "Out"),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 3),
+        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 9.5)),
+      ],
+    );
+  }
+
+  // --- 5. PHARMACY CARD ---
+  Widget _buildPharmacyCard({
+    required BuildContext context,
+    required dynamic pharmacy,
+    required bool isSelected,
+    required PharmacyProvider provider,
+  }) {
+    final int pharmacyId = pharmacy['pharmacyId'] ?? 0;
     final String name = pharmacy['name'] ?? 'Partner Pharmacy';
     final String address = pharmacy['address'] ?? 'Colombo';
     final double distanceKm = (pharmacy['distanceKm'] as num? ?? 0.0).toDouble();
@@ -306,159 +440,204 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
         ? "Stock Available"
         : (isLow ? "Low Stock" : "Out of Stock");
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: InkWell(
+        onTap: () => provider.selectPharmacy(pharmacyId),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF1E293B)
+                : const Color(0xFF0F172A).withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.secondary
+                  : Colors.white.withValues(alpha: 0.06),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.secondary.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row 1: Name, Badge, Distance
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              // Row 1: Name, Status Badge, Distance
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                statusText,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-                          ),
-                          child: Text(
-                            statusText,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        const SizedBox(height: 3),
+                        Text(
+                          address,
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      address,
-                      style: TextStyle(color: Colors.grey.shade400, fontSize: 11.5),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  "${distanceKm.toStringAsFixed(1)} km",
-                  style: const TextStyle(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
                   ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Row 2: Operating hours & delivery tags
-          Row(
-            children: [
-              const Icon(Icons.access_time_rounded, color: Colors.grey, size: 12),
-              const SizedBox(width: 4),
-              Text(
-                hours,
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
-              ),
-              if (delivery) ...[
-                const SizedBox(width: 12),
-                const Icon(Icons.delivery_dining_rounded, color: Color(0xFF38BDF8), size: 13),
-                const SizedBox(width: 3),
-                const Text(
-                  "Delivery Available",
-                  style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
-                ),
-              ],
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Row 3: Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: isAvailable || isLow
-                      ? () => _showReservationSheet(context, pharmacy, provider)
-                      : null,
-                  icon: const Icon(Icons.bookmark_add_rounded, size: 15),
-                  label: const Text("Reserve Stock", style: TextStyle(fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Calling $name at $phone..."),
-                      backgroundColor: const Color(0xFF1E293B),
+                    child: Text(
+                      "${distanceKm.toStringAsFixed(1)} km",
+                      style: const TextStyle(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.call_rounded, size: 14, color: Colors.white),
-                label: const Text("Call", style: TextStyle(color: Colors.white, fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Row 2: Hours & Delivery tags
+              Row(
+                children: [
+                  const Icon(Icons.access_time_rounded, color: Colors.grey, size: 12),
+                  const SizedBox(width: 4),
+                  Text(hours, style: TextStyle(color: Colors.grey.shade400, fontSize: 11)),
+                  if (delivery) ...[
+                    const SizedBox(width: 12),
+                    const Icon(Icons.delivery_dining_rounded, color: Color(0xFF38BDF8), size: 14),
+                    const SizedBox(width: 3),
+                    const Text(
+                      "Delivery Available",
+                      style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
+                    ),
+                  ],
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Row 3: Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isAvailable || isLow
+                          ? () => _showReservationSheet(context, pharmacy, provider)
+                          : null,
+                      icon: const Icon(Icons.bookmark_add_rounded, size: 15),
+                      label: const Text("Reserve Stock", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Calling $name at $phone..."),
+                          backgroundColor: const Color(0xFF1E293B),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.call_rounded, size: 14, color: Colors.white),
+                    label: const Text("Call", style: TextStyle(color: Colors.white, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.search_off_rounded, color: Colors.grey, size: 36),
+          const SizedBox(height: 12),
+          const Text(
+            "No partner pharmacies match this filter.",
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              final provider = context.read<PharmacyProvider>();
+              provider.setActiveFilter("ALL");
+              provider.setSearchQuery("");
+              _searchController.clear();
+            },
+            child: const Text("Reset Filters", style: TextStyle(color: AppColors.secondary)),
           ),
         ],
       ),
@@ -467,8 +646,9 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
 
   // --- MAP TAP HANDLER ---
   void _handleMapTap(Offset tapPos, List<dynamic> pharmacies, BuildContext context) {
-    final size = MediaQuery.of(context).size;
     final provider = context.read<PharmacyProvider>();
+    const double cardWidth = 350;
+    const double cardHeight = 250;
 
     for (final p in pharmacies) {
       final double lat = (p['latitude'] as num? ?? userLat).toDouble();
@@ -477,11 +657,11 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
       final double normX = (lng - minLng) / (maxLng - minLng);
       final double normY = 1.0 - (lat - minLat) / (maxLat - minLat);
 
-      final double pinX = normX * size.width;
-      final double pinY = normY * size.height;
+      final double pinX = normX * cardWidth;
+      final double pinY = normY * cardHeight;
 
       final double dist = (tapPos - Offset(pinX, pinY)).distance;
-      if (dist < 40) {
+      if (dist < 45) {
         provider.selectPharmacy(p['pharmacyId']);
         break;
       }
@@ -689,7 +869,7 @@ class _ColomboMapPainter extends CustomPainter {
     final oceanPaint = Paint()
       ..shader = const LinearGradient(
         colors: [Color(0xFF031525), Color(0xFF051B2E), Color(0xFF070B19)],
-        stops: [0.0, 0.20, 0.45],
+        stops: [0.0, 0.25, 0.55],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), oceanPaint);
 
@@ -735,23 +915,23 @@ class _ColomboMapPainter extends CustomPainter {
     canvas.drawPath(baselineRoad, roadPaint);
 
     // Cross connecting roads
-    for (double i = 0.15; i < 0.95; i += 0.12) {
+    for (double i = 0.15; i < 0.95; i += 0.18) {
       canvas.drawLine(
         Offset(w * 0.15, h * i),
-        Offset(w * 0.90, h * i + 20),
+        Offset(w * 0.90, h * i + 15),
         roadPaint,
       );
     }
 
     // 4. Draw Colombo District Landmark Labels
-    _drawLandmark(canvas, Offset(w * 0.28, h * 0.12), "Colombo Fort", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.24, h * 0.28), "Galle Face", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.52, h * 0.38), "Colombo 07 (Cinnamon Gardens)", const Color(0xFF38BDF8));
-    _drawLandmark(canvas, Offset(w * 0.30, h * 0.45), "Colombo 03 (Kollupitiya)", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.32, h * 0.62), "Colombo 04 (Bambalapitiya)", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.55, h * 0.68), "Colombo 05 (Havelock)", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.78, h * 0.78), "Nugegoda", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.35, h * 0.90), "Dehiwala", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.28, h * 0.10), "Colombo Fort", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.22, h * 0.26), "Galle Face", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.48, h * 0.36), "Colombo 07", const Color(0xFF38BDF8));
+    _drawLandmark(canvas, Offset(w * 0.28, h * 0.46), "Colombo 03", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.30, h * 0.62), "Colombo 04", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.52, h * 0.68), "Colombo 05", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.75, h * 0.78), "Nugegoda", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.32, h * 0.88), "Dehiwala", const Color(0xFF64748B));
 
     // 5. Draw User Location Radar Beacon
     final userX = ((userLng - minLng) / (maxLng - minLng)) * w;
@@ -762,13 +942,12 @@ class _ColomboMapPainter extends CustomPainter {
       ..color = const Color(0xFF0284C7).withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
-    canvas.drawCircle(Offset(userX, userY), 28 * pulseScale, radarRingPaint);
-    canvas.drawCircle(Offset(userX, userY), 45 * pulseScale, radarRingPaint..color = const Color(0xFF0284C7).withValues(alpha: 0.10));
+    canvas.drawCircle(Offset(userX, userY), 22 * pulseScale, radarRingPaint);
 
     // User Blue Dot
     final userDotPaint = Paint()..color = const Color(0xFF38BDF8);
-    canvas.drawCircle(Offset(userX, userY), 7, userDotPaint);
-    canvas.drawCircle(Offset(userX, userY), 10, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
+    canvas.drawCircle(Offset(userX, userY), 6, userDotPaint);
+    canvas.drawCircle(Offset(userX, userY), 9, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.8);
 
     // 6. Draw Pharmacy Pins
     for (final p in pharmacies) {
@@ -789,22 +968,22 @@ class _ColomboMapPainter extends CustomPainter {
       if (isSelected) {
         canvas.drawCircle(
           Offset(px, py),
-          18 * pulseScale,
-          Paint()..color = pinColor.withValues(alpha: 0.35),
+          14 * pulseScale,
+          Paint()..color = pinColor.withValues(alpha: 0.4),
         );
       }
 
       // Outer Ring
       canvas.drawCircle(
         Offset(px, py),
-        isSelected ? 10 : 7.5,
+        isSelected ? 8.5 : 6.5,
         Paint()..color = Colors.white,
       );
 
       // Inner Core
       canvas.drawCircle(
         Offset(px, py),
-        isSelected ? 7.5 : 5.5,
+        isSelected ? 6.5 : 4.5,
         Paint()..color = pinColor,
       );
 
@@ -814,7 +993,7 @@ class _ColomboMapPainter extends CustomPainter {
         text: name,
         style: TextStyle(
           color: isSelected ? Colors.white : Colors.grey.shade300,
-          fontSize: isSelected ? 10 : 8.5,
+          fontSize: isSelected ? 9.5 : 8.0,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           backgroundColor: const Color(0xFF0F172A).withValues(alpha: 0.85),
         ),
@@ -823,7 +1002,7 @@ class _ColomboMapPainter extends CustomPainter {
         text: textSpan,
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset(px - (textPainter.width / 2), py + 10));
+      textPainter.paint(canvas, Offset(px - (textPainter.width / 2), py + 8));
     }
   }
 
@@ -832,9 +1011,9 @@ class _ColomboMapPainter extends CustomPainter {
       text: text,
       style: TextStyle(
         color: color.withValues(alpha: 0.7),
-        fontSize: 9,
+        fontSize: 8.5,
         fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+        letterSpacing: 0.4,
       ),
     );
     final painter = TextPainter(
