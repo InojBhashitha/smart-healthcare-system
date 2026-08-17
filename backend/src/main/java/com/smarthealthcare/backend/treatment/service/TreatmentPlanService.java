@@ -103,7 +103,8 @@ public class TreatmentPlanService {
 
         List<DoseItemResponse> checklist = new ArrayList<>();
         for (DoseSchedule ds : activeSchedules) {
-            Optional<DoseLog> logOpt = logRepository.findByDoseScheduleScheduleIdAndLogDate(ds.getScheduleId(), today);
+            List<DoseLog> logs = logRepository.findByDoseScheduleScheduleIdAndLogDate(ds.getScheduleId(), today);
+            DoseLog logOpt = !logs.isEmpty() ? logs.get(0) : null;
 
             DoseItemResponse dto = new DoseItemResponse();
             dto.setScheduleId(ds.getScheduleId());
@@ -114,9 +115,9 @@ public class TreatmentPlanService {
             dto.setDoseSlot(ds.getDoseSlot());
             dto.setScheduledTime(ds.getScheduledTime());
 
-            if (logOpt.isPresent()) {
-                dto.setStatus(logOpt.get().getStatus());
-                dto.setTakenAt(logOpt.get().getTakenAt() != null ? logOpt.get().getTakenAt().toString() : null);
+            if (logOpt != null) {
+                dto.setStatus(logOpt.getStatus());
+                dto.setTakenAt(logOpt.getTakenAt() != null ? logOpt.getTakenAt().toString() : null);
             } else {
                 dto.setStatus("PENDING");
                 dto.setTakenAt(null);
@@ -134,13 +135,15 @@ public class TreatmentPlanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Dose schedule not found: " + scheduleId));
 
         LocalDate today = LocalDate.now();
-        DoseLog logEntry = logRepository.findByDoseScheduleScheduleIdAndLogDate(scheduleId, today)
-                .orElseGet(() -> {
-                    DoseLog newLog = new DoseLog();
-                    newLog.setDoseSchedule(schedule);
-                    newLog.setLogDate(today);
-                    return newLog;
-                });
+        List<DoseLog> logs = logRepository.findByDoseScheduleScheduleIdAndLogDate(scheduleId, today);
+        DoseLog logEntry;
+        if (!logs.isEmpty()) {
+            logEntry = logs.get(0);
+        } else {
+            logEntry = new DoseLog();
+            logEntry.setDoseSchedule(schedule);
+            logEntry.setLogDate(today);
+        }
 
         logEntry.setStatus(status.toUpperCase());
         if ("TAKEN".equalsIgnoreCase(status)) {

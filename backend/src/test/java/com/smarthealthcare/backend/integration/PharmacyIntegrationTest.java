@@ -28,8 +28,8 @@ public class PharmacyIntegrationTest {
         double dist = distanceCalculator.calculateDistanceKm(6.9271, 79.8612, 6.9147, 79.8540);
         assertTrue(dist > 0.0 && dist < 5.0, "Calculated distance should be realistic");
 
-        // Test pharmacy stock search
-        List<PharmacySearchResponse> pharmacies = pharmacyService.searchNearbyPharmacies(6.9271, 79.8612, null);
+        // Test pharmacy stock search with (lat, lng, userId, prescriptionId)
+        List<PharmacySearchResponse> pharmacies = pharmacyService.searchNearbyPharmacies(6.9271, 79.8612, null, null);
 
         assertNotNull(pharmacies);
         assertFalse(pharmacies.isEmpty(), "Should return seeded partner pharmacies");

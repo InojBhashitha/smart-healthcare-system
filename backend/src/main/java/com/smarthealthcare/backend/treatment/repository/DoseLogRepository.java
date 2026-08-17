@@ -13,7 +13,7 @@ import java.util.Optional;
 @Repository
 public interface DoseLogRepository extends JpaRepository<DoseLog, Long> {
 
-    Optional<DoseLog> findByDoseScheduleScheduleIdAndLogDate(Long scheduleId, LocalDate logDate);
+    List<DoseLog> findByDoseScheduleScheduleIdAndLogDate(Long scheduleId, LocalDate logDate);
 
     @Query("SELECT dl FROM DoseLog dl WHERE dl.doseSchedule.treatmentPlan.user.userId = :userId AND dl.logDate BETWEEN :startDate AND :endDate")
     List<DoseLog> findLogsByUserAndDateRange(
