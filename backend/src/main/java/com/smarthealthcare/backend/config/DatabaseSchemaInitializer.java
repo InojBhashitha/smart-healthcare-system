@@ -72,6 +72,10 @@ public class DatabaseSchemaInitializer {
                 ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS delivery_available BOOLEAN DEFAULT false;
                 ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20);
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS pharmacy_id BIGINT;
+                ALTER TABLE medicines ADD COLUMN IF NOT EXISTS strength VARCHAR(100);
+                ALTER TABLE medicines ADD COLUMN IF NOT EXISTS dosage_form VARCHAR(50);
+                ALTER TABLE pharmacy_stocks ADD COLUMN IF NOT EXISTS min_safety_level INTEGER DEFAULT 20;
+                ALTER TABLE pharmacy_stocks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
             """);
 
             log.info("PostgreSQL schema integrity check complete!");
