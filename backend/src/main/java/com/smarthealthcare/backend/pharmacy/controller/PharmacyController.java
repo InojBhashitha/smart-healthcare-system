@@ -37,18 +37,22 @@ public class PharmacyController {
             @RequestParam(defaultValue = "79.8612") double lng,
             @RequestParam(required = false) Long prescriptionId) {
 
+        Long userId = null;
         Long effectiveRxId = prescriptionId;
-        if (effectiveRxId == null && authentication != null && authentication.isAuthenticated()) {
+        if (authentication != null && authentication.isAuthenticated()) {
             try {
                 User user = getUserFromAuth(authentication);
-                var rxs = prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(user.getUserId());
-                if (!rxs.isEmpty()) {
-                    effectiveRxId = rxs.get(0).getPrescriptionId();
+                userId = user.getUserId();
+                if (effectiveRxId == null) {
+                    var rxs = prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(userId);
+                    if (!rxs.isEmpty()) {
+                        effectiveRxId = rxs.get(0).getPrescriptionId();
+                    }
                 }
             } catch (Exception ignored) {}
         }
 
-        List<PharmacySearchResponse> pharmacies = pharmacyService.searchNearbyPharmacies(lat, lng, effectiveRxId);
+        List<PharmacySearchResponse> pharmacies = pharmacyService.searchNearbyPharmacies(lat, lng, userId, effectiveRxId);
         return ResponseEntity.ok(pharmacies);
     }
 

@@ -29,6 +29,7 @@ public class PharmacyService {
     private final PharmacyStockRepository stockRepository;
     private final PrescriptionReservationRepository reservationRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final com.smarthealthcare.backend.treatment.repository.DoseScheduleRepository doseScheduleRepository;
     private final HaversineDistanceCalculator distanceCalculator;
 
     public PharmacyService(
@@ -36,24 +37,59 @@ public class PharmacyService {
             PharmacyStockRepository stockRepository,
             PrescriptionReservationRepository reservationRepository,
             PrescriptionRepository prescriptionRepository,
+            com.smarthealthcare.backend.treatment.repository.DoseScheduleRepository doseScheduleRepository,
             HaversineDistanceCalculator distanceCalculator) {
 
         this.pharmacyRepository = pharmacyRepository;
         this.stockRepository = stockRepository;
         this.reservationRepository = reservationRepository;
         this.prescriptionRepository = prescriptionRepository;
+        this.doseScheduleRepository = doseScheduleRepository;
         this.distanceCalculator = distanceCalculator;
     }
 
     public List<PharmacySearchResponse> searchNearbyPharmacies(
             double userLat,
             double userLng,
+            Long userId,
             Long prescriptionId) {
 
         List<Pharmacy> pharmacies = pharmacyRepository.findByIsVerifiedTrue();
-        Prescription rx = prescriptionId != null
-                ? prescriptionRepository.findWithMedicinesByPrescriptionId(prescriptionId).orElse(null)
-                : null;
+
+        // 1. Gather distinct medicines from patient's active treatment plan
+        Set<String> activeMedNames = new LinkedHashSet<>();
+        if (userId != null) {
+            var activeSchedules = doseScheduleRepository.findActiveSchedulesByUserId(userId);
+            for (var schedule : activeSchedules) {
+                if (schedule.getMedicineName() != null && !schedule.getMedicineName().isBlank()) {
+                    activeMedNames.add(schedule.getMedicineName().trim());
+                }
+            }
+        }
+
+        // 2. If no active plan, gather from prescription
+        if (activeMedNames.isEmpty()) {
+            Prescription rx = null;
+            if (prescriptionId != null) {
+                rx = prescriptionRepository.findWithMedicinesByPrescriptionId(prescriptionId).orElse(null);
+            } else if (userId != null) {
+                var rxs = prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(userId);
+                if (!rxs.isEmpty()) {
+                    rx = prescriptionRepository.findWithMedicinesByPrescriptionId(rxs.get(0).getPrescriptionId()).orElse(null);
+                }
+            }
+
+            if (rx != null && rx.getMedicines() != null) {
+                for (PrescriptionMedicine med : rx.getMedicines()) {
+                    String name = med.getMedicine() != null && med.getMedicine().getGenericName() != null
+                            ? med.getMedicine().getGenericName()
+                            : med.getMedicineName();
+                    if (name != null && !name.isBlank()) {
+                        activeMedNames.add(name.trim());
+                    }
+                }
+            }
+        }
 
         List<PharmacySearchResponse> result = new ArrayList<>();
 
@@ -72,11 +108,22 @@ public class PharmacyService {
             response.setIsVerified(p.getIsVerified());
             response.setDistanceKm(distance);
 
-            if (rx != null && !rx.getMedicines().isEmpty()) {
-                evaluateStockForPrescription(response, p.getPharmacyId(), rx.getMedicines());
+            if (!activeMedNames.isEmpty()) {
+                evaluateStockForMedicineNames(response, p.getPharmacyId(), activeMedNames);
             } else {
+                // Populate all available stock for this pharmacy from DB
+                List<PharmacyStock> allStocks = stockRepository.findByPharmacyPharmacyId(p.getPharmacyId());
+                for (PharmacyStock ps : allStocks) {
+                    PharmacySearchResponse.MedicineStockItem item = new PharmacySearchResponse.MedicineStockItem();
+                    item.setMedicineName(ps.getMedicine().getGenericName());
+                    item.setGenericName(ps.getMedicine().getGenericName());
+                    item.setQuantityAvailable(ps.getQuantityAvailable());
+                    item.setUnitPrice(ps.getUnitPrice());
+                    item.setAvailability(ps.getQuantityAvailable() > 20 ? "IN_STOCK" : (ps.getQuantityAvailable() > 0 ? "LOW_STOCK" : "OUT_OF_STOCK"));
+                    response.getStockItems().add(item);
+                }
                 response.setStockStatus("IN_STOCK");
-                response.setMatchedMedicinesCount(0);
+                response.setMatchedMedicinesCount(allStocks.size());
             }
 
             result.add(response);
@@ -88,25 +135,23 @@ public class PharmacyService {
         return result;
     }
 
-    private void evaluateStockForPrescription(
+    private void evaluateStockForMedicineNames(
             PharmacySearchResponse response,
             Long pharmacyId,
-            List<PrescriptionMedicine> rxMeds) {
+            Set<String> medicineNames) {
 
         int inStockCount = 0;
         int lowStockCount = 0;
         int outOfStockCount = 0;
 
-        for (PrescriptionMedicine med : rxMeds) {
-            String medName = med.getMedicineName();
-            if (medName == null || medName.isBlank()) continue;
-            String cleanName = medName.split(" ")[0].trim();
+        for (String rawName : medicineNames) {
+            String cleanName = rawName.split(" ")[0].trim();
 
             List<PharmacyStock> stocks = stockRepository
                     .findStockByPharmacyAndMedicineName(pharmacyId, cleanName);
 
             PharmacySearchResponse.MedicineStockItem item = new PharmacySearchResponse.MedicineStockItem();
-            item.setMedicineName(med.getMedicineName());
+            item.setMedicineName(rawName);
 
             if (!stocks.isEmpty()) {
                 PharmacyStock stock = stocks.get(0);
@@ -135,11 +180,11 @@ public class PharmacyService {
             response.getStockItems().add(item);
         }
 
-        response.setMatchedMedicinesCount(rxMeds.size());
+        response.setMatchedMedicinesCount(medicineNames.size());
 
-        if (outOfStockCount > 0) {
+        if (outOfStockCount > 0 && inStockCount == 0) {
             response.setStockStatus("OUT_OF_STOCK");
-        } else if (lowStockCount > 0) {
+        } else if (outOfStockCount > 0 || lowStockCount > 0) {
             response.setStockStatus("LOW_STOCK");
         } else {
             response.setStockStatus("IN_STOCK");

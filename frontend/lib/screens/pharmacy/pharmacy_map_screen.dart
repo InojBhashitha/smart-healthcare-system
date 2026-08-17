@@ -883,20 +883,25 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
           final String strength = med['strength'] ?? '';
           final String instruction = med['instruction'] ?? '';
 
-          // Look up stock in this pharmacy
+          // Look up real stock in this pharmacy from backend database
           final stockMatch = stockItems.firstWhere(
-            (s) => (s['medicineName'] ?? '').toString().toLowerCase().contains(medName.toLowerCase().split(' ').first),
+            (s) {
+              final sName = (s['medicineName'] ?? s['genericName'] ?? '').toString().toLowerCase();
+              final mName = medName.toLowerCase();
+              final cleanMName = mName.split(' ').first;
+              return sName.contains(cleanMName) || mName.contains(sName.split(' ').first);
+            },
             orElse: () => null,
           );
 
-          final int qty = stockMatch != null ? (stockMatch['quantityAvailable'] as num? ?? 120).toInt() : 150;
+          final int qty = stockMatch != null ? (stockMatch['quantityAvailable'] as num? ?? 0).toInt() : 0;
           final double price = stockMatch != null && stockMatch['unitPrice'] != null
               ? (stockMatch['unitPrice'] as num).toDouble()
-              : 48.00;
-          final String avail = stockMatch != null ? (stockMatch['availability'] ?? 'IN_STOCK') : 'IN_STOCK';
+              : 0.0;
+          final String avail = stockMatch != null ? (stockMatch['availability'] ?? (qty > 20 ? 'IN_STOCK' : (qty > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK'))) : 'OUT_OF_STOCK';
 
-          final bool isInStock = qty > 20 && avail != 'OUT_OF_STOCK';
-          final bool isLow = qty > 0 && qty <= 20;
+          final bool isInStock = qty > 20 && avail == 'IN_STOCK';
+          final bool isLow = qty > 0 && (qty <= 20 || avail == 'LOW_STOCK');
           final bool isOut = qty <= 0 || avail == 'OUT_OF_STOCK';
 
           if (!isOut) {
