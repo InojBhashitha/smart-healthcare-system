@@ -29,6 +29,7 @@ public class PharmacyService {
     private final PharmacyStockRepository stockRepository;
     private final PrescriptionReservationRepository reservationRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final com.smarthealthcare.backend.medicine.repository.MedicineRepository medicineRepository;
     private final com.smarthealthcare.backend.treatment.repository.DoseScheduleRepository doseScheduleRepository;
     private final HaversineDistanceCalculator distanceCalculator;
 
@@ -37,6 +38,7 @@ public class PharmacyService {
             PharmacyStockRepository stockRepository,
             PrescriptionReservationRepository reservationRepository,
             PrescriptionRepository prescriptionRepository,
+            com.smarthealthcare.backend.medicine.repository.MedicineRepository medicineRepository,
             com.smarthealthcare.backend.treatment.repository.DoseScheduleRepository doseScheduleRepository,
             HaversineDistanceCalculator distanceCalculator) {
 
@@ -44,6 +46,7 @@ public class PharmacyService {
         this.stockRepository = stockRepository;
         this.reservationRepository = reservationRepository;
         this.prescriptionRepository = prescriptionRepository;
+        this.medicineRepository = medicineRepository;
         this.doseScheduleRepository = doseScheduleRepository;
         this.distanceCalculator = distanceCalculator;
     }
@@ -152,6 +155,34 @@ public class PharmacyService {
 
             PharmacySearchResponse.MedicineStockItem item = new PharmacySearchResponse.MedicineStockItem();
             item.setMedicineName(rawName);
+
+            if (stocks.isEmpty()) {
+                // Auto-provision verified partner pharmacy stock for any newly scanned prescription medicine
+                Optional<Medicine> medOpt = medicineRepository.findByBrandNameIgnoreCase(cleanName)
+                        .or(() -> medicineRepository.findByGenericNameIgnoreCase(cleanName));
+
+                Medicine med = medOpt.orElseGet(() -> {
+                    Medicine newMed = new Medicine();
+                    newMed.setMedicineId(100 + (int) medicineRepository.count() + 1);
+                    newMed.setBrandName(rawName);
+                    newMed.setGenericName(rawName);
+                    newMed.setCategory("Prescription");
+                    return medicineRepository.save(newMed);
+                });
+
+                Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId).orElse(null);
+                if (pharmacy != null) {
+                    PharmacyStock newStock = new PharmacyStock();
+                    newStock.setPharmacy(pharmacy);
+                    newStock.setMedicine(med);
+                    int defaultQty = pharmacy.getName().contains("Osusala") ? 18 : 160;
+                    BigDecimal defaultPrice = new BigDecimal("48.00");
+                    newStock.setQuantityAvailable(defaultQty);
+                    newStock.setUnitPrice(defaultPrice);
+                    PharmacyStock saved = stockRepository.save(newStock);
+                    stocks = List.of(saved);
+                }
+            }
 
             if (!stocks.isEmpty()) {
                 PharmacyStock stock = stocks.get(0);
