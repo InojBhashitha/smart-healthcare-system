@@ -1,16 +1,5 @@
 import type { LoginCredentials, User } from '../types/auth';
-import { delay } from './api';
-
-// Hardcoded development credentials as requested
-const MOCK_EMAIL = 'pharmacy1@example.com';
-const MOCK_PASSWORD = 'pharmacy123';
-
-const MOCK_USER: User = {
-  id: 'pharm-001',
-  email: MOCK_EMAIL,
-  name: 'HealthPlus Pharmacy Central',
-  role: 'pharmacy',
-};
+import { API_BASE_URL } from './api';
 
 export interface LoginResponse {
   user: User;
@@ -19,29 +8,50 @@ export interface LoginResponse {
 
 export const authService = {
   /**
-   * Performs mock login with hardcoded credentials.
-   * Simulates network latency of 800ms.
+   * Performs actual login calling the Spring Boot backend REST endpoint.
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    await delay(800);
+    const response = await fetch(`${API_BASE_URL}/api/web/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    });
 
-    const email = credentials.email.trim().toLowerCase();
-    const password = credentials.password;
-
-    if (email === MOCK_EMAIL && password === MOCK_PASSWORD) {
-      return {
-        user: MOCK_USER,
-        token: 'mock-jwt-token-xyz-123',
-      };
+    if (!response.ok) {
+      let errorMessage = 'Login failed. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (errorData && errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (e) {
+        // Fallback for non-JSON or missing error body
+      }
+      throw new Error(errorMessage);
     }
 
-    throw new Error('Invalid email or password. Please try again.');
+    const data = await response.json();
+
+    const user: User = {
+      userId: data.userId,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      pharmacyId: data.pharmacyId,
+    };
+
+    return {
+      user,
+      token: data.token,
+    };
   },
 
   /**
-   * Performs mock logout.
+   * Performs client-side session cleanup.
    */
   async logout(): Promise<void> {
-    await delay(300);
+    // Stateless sessions only require client-side token disposal
   }
 };

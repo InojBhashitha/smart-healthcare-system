@@ -1,4 +1,6 @@
-import { delay } from './api';
+import { API_BASE_URL, getAuthHeaders } from './api';
+import { stockService } from './stockService';
+import { profileService } from './profileService';
 
 export interface StockMetrics {
   totalMedicines: number;
@@ -36,36 +38,85 @@ export interface DashboardData {
 
 export const dashboardService = {
   /**
-   * Fetches mock dashboard data with a simulated network delay of 600ms.
+   * Resolves the dynamically mapped dashboard data from Spring Boot REST APIs.
    */
   async getDashboardData(): Promise<DashboardData> {
-    await delay(600);
-    
+    // 1. Fetch KPI metrics from the dedicated stats endpoint
+    const statsResponse = await fetch(`${API_BASE_URL}/api/web/dashboard/stats`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (!statsResponse.ok) {
+      throw new Error('Failed to fetch dashboard metrics.');
+    }
+
+    const stats = await statsResponse.json();
+
+    // 2. Fetch stock list for low stock items and updates
+    let stocks = [];
+    try {
+      stocks = await stockService.getStock();
+    } catch (e) {
+      console.error('Failed to fetch stocks for dashboard compilation:', e);
+    }
+
+    // 3. Fetch profile for location widget
+    let locationStatus: LocationStatus = {
+      status: 'Location not configured ⚠️',
+      address: 'Address not specified'
+    };
+    try {
+      const profile = await profileService.getPharmacyProfile();
+      locationStatus = {
+        status: profile.location.configured ? 'Location configured ✓' : 'Location not configured ⚠️',
+        address: profile.address || 'Address not specified'
+      };
+    } catch (e) {
+      console.error('Failed to fetch profile for dashboard compilation:', e);
+    }
+
+    // Map metrics from backend DTO fields
+    const total = stats.totalStockRecords;
+    const inStock = stats.availableStock;
+    const lowStock = stats.lowStock + stats.criticalStock;
+    const outOfStock = stats.outOfStock;
+
+    // Filter low stock list
+    const lowStockMedicines: LowStockMedicine[] = stocks
+      .filter(item => item.status === 'Low Stock' || item.status === 'Critical' || item.status === 'Out of Stock')
+      .slice(0, 5)
+      .map(item => ({
+        id: item.id,
+        name: item.medicineName,
+        currentStock: item.currentStock,
+        status: item.status === 'Critical' || item.status === 'Out of Stock' ? 'Critical' as const : 'Low' as const
+      }));
+
+    // Map recent updates
+    const recentUpdates: RecentUpdate[] = [...stocks]
+      .sort((a, b) => b.stockId - a.stockId)
+      .slice(0, 4)
+      .map(item => ({
+        id: item.id,
+        medicineName: item.medicineName,
+        action: `Current inventory: ${item.currentStock} units`,
+        timestamp: item.lastUpdated
+      }));
+
     return {
       metrics: {
-        totalMedicines: 128,
-        inStock: 102,
-        lowStock: 18,
-        outOfStock: 8
+        totalMedicines: total,
+        inStock: inStock,
+        lowStock: lowStock,
+        outOfStock: outOfStock
       },
-      lowStockMedicines: [
-        { id: '1', name: 'Amoxicillin 500mg', currentStock: 8, status: 'Low' },
-        { id: '2', name: 'Cetirizine 10mg', currentStock: 3, status: 'Critical' },
-        { id: '3', name: 'Paracetamol 500mg', currentStock: 15, status: 'Low' },
-        { id: '4', name: 'Metformin 850mg', currentStock: 2, status: 'Critical' },
-        { id: '5', name: 'Ibuprofen 400mg', currentStock: 9, status: 'Low' }
-      ],
-      recentUpdates: [
-        { id: '1', medicineName: 'Paracetamol 500mg', action: 'Restocked +500 units', timestamp: '5 mins ago' },
-        { id: '2', medicineName: 'Amoxicillin 500mg', action: 'Dispensed 30 units', timestamp: '20 mins ago' },
-        { id: '3', medicineName: 'Cetirizine 10mg', action: 'Stock alert triggered', timestamp: '1 hour ago' },
-        { id: '4', medicineName: 'Atorvastatin 20mg', action: 'Updated price', timestamp: '3 hours ago' }
-      ],
-      locationStatus: {
-        status: 'Location configured ✓',
-        address: 'Colombo, Sri Lanka'
-      },
+      lowStockMedicines,
+      recentUpdates,
+      locationStatus,
       lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
   }
 };
+
+export default dashboardService;

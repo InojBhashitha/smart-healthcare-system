@@ -1,9 +1,23 @@
-/**
- * Mock API service layer
- * Mimics asynchronous API calls with configurable delay to simulate actual REST requests.
- */
-
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Future base URL can be read from environment
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
+
+export const getAuthHeaders = (): HeadersInit => {
+  const session = localStorage.getItem('pharmacy_dashboard_session');
+  if (session) {
+    try {
+      const { token } = JSON.parse(session);
+      if (token) {
+        return {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+      }
+    } catch (e) {
+      console.error('Failed to parse session token:', e);
+    }
+  }
+  return {
+    'Content-Type': 'application/json'
+  };
+};

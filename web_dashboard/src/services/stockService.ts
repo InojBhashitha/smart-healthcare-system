@@ -1,17 +1,5 @@
-import { delay } from './api';
-
-export type StockStatus = 'Available' | 'Low Stock' | 'Critical' | 'Out of Stock';
-
-export interface StockItem {
-  id: string;
-  medicineName: string;
-  category: string;
-  strength: string;
-  currentStock: number;
-  minStockLevel: number;
-  status: StockStatus;
-  lastUpdated: string;
-}
+import { API_BASE_URL, getAuthHeaders } from './api';
+import type { StockItem, StockStatus } from '../types/stock';
 
 export interface StockSummary {
   totalMedicines: number;
@@ -20,182 +8,149 @@ export interface StockSummary {
   outOfStock: number;
 }
 
-export interface MedicineMetadata {
-  name: string;
-  category: string;
-  strength: string;
-}
-
-// Master Medicines database for searchable autocomplete
-export const MASTER_MEDICINES: MedicineMetadata[] = [
-  { name: 'Paracetamol', category: 'Analgesic', strength: '500mg' },
-  { name: 'Amoxicillin', category: 'Antibiotic', strength: '500mg' },
-  { name: 'Cetirizine', category: 'Antihistamine', strength: '10mg' },
-  { name: 'Metformin', category: 'Antidiabetic', strength: '850mg' },
-  { name: 'Atorvastatin', category: 'Cholesterol', strength: '20mg' },
-  { name: 'Omeprazole', category: 'Antacid', strength: '20mg' },
-  { name: 'Amlodipine', category: 'Antihypertensive', strength: '5mg' },
-  { name: 'Ibuprofen', category: 'NSAID', strength: '400mg' },
-  { name: 'Azithromycin', category: 'Antibiotic', strength: '250mg' },
-  { name: 'Losartan', category: 'Antihypertensive', strength: '50mg' },
-  { name: 'Salbutamol', category: 'Bronchodilator', strength: '100mcg' },
-  { name: 'Furosemide', category: 'Diuretic', strength: '40mg' },
-  { name: 'Clopidogrel', category: 'Antiplatelet', strength: '75mg' }
-];
-
-// Seed Mock Stock Items
-const initialStockList: StockItem[] = [
-  {
-    id: 'STK-001',
-    medicineName: 'Paracetamol',
-    category: 'Analgesic',
-    strength: '500mg',
-    currentStock: 450,
-    minStockLevel: 100,
-    status: 'Available',
-    lastUpdated: '10 mins ago'
-  },
-  {
-    id: 'STK-002',
-    medicineName: 'Amoxicillin',
-    category: 'Antibiotic',
-    strength: '500mg',
-    currentStock: 8,
-    minStockLevel: 50,
-    status: 'Critical',
-    lastUpdated: '25 mins ago'
-  },
-  {
-    id: 'STK-003',
-    medicineName: 'Cetirizine',
-    category: 'Antihistamine',
-    strength: '10mg',
-    currentStock: 45,
-    minStockLevel: 50,
-    status: 'Low Stock',
-    lastUpdated: '1 hour ago'
-  },
-  {
-    id: 'STK-004',
-    medicineName: 'Metformin',
-    category: 'Antidiabetic',
-    strength: '850mg',
-    currentStock: 120,
-    minStockLevel: 40,
-    status: 'Available',
-    lastUpdated: '2 hours ago'
-  },
-  {
-    id: 'STK-005',
-    medicineName: 'Atorvastatin',
-    category: 'Cholesterol',
-    strength: '20mg',
-    currentStock: 0,
-    minStockLevel: 30,
-    status: 'Out of Stock',
-    lastUpdated: '5 mins ago'
-  },
-  {
-    id: 'STK-006',
-    medicineName: 'Omeprazole',
-    category: 'Antacid',
-    strength: '20mg',
-    currentStock: 250,
-    minStockLevel: 60,
-    status: 'Available',
-    lastUpdated: '1 day ago'
-  },
-  {
-    id: 'STK-007',
-    medicineName: 'Amlodipine',
-    category: 'Antihypertensive',
-    strength: '5mg',
-    currentStock: 35,
-    minStockLevel: 40,
-    status: 'Low Stock',
-    lastUpdated: '3 hours ago'
-  },
-  {
-    id: 'STK-008',
-    medicineName: 'Ibuprofen',
-    category: 'NSAID',
-    strength: '400mg',
-    currentStock: 90,
-    minStockLevel: 50,
-    status: 'Available',
-    lastUpdated: '4 hours ago'
-  },
-  {
-    id: 'STK-009',
-    medicineName: 'Azithromycin',
-    category: 'Antibiotic',
-    strength: '250mg',
-    currentStock: 5,
-    minStockLevel: 20,
-    status: 'Critical',
-    lastUpdated: '2 days ago'
-  },
-  {
-    id: 'STK-010',
-    medicineName: 'Losartan',
-    category: 'Antihypertensive',
-    strength: '50mg',
-    currentStock: 15,
-    minStockLevel: 30,
-    status: 'Low Stock',
-    lastUpdated: '5 hours ago'
-  },
-  {
-    id: 'STK-011',
-    medicineName: 'Salbutamol',
-    category: 'Bronchodilator',
-    strength: '100mcg',
-    currentStock: 80,
-    minStockLevel: 25,
-    status: 'Available',
-    lastUpdated: '3 days ago'
-  },
-  {
-    id: 'STK-012',
-    medicineName: 'Furosemide',
-    category: 'Diuretic',
-    strength: '40mg',
-    currentStock: 0,
-    minStockLevel: 15,
-    status: 'Out of Stock',
-    lastUpdated: '12 hours ago'
-  },
-  {
-    id: 'STK-013',
-    medicineName: 'Clopidogrel',
-    category: 'Antiplatelet',
-    strength: '75mg',
-    currentStock: 200,
-    minStockLevel: 40,
-    status: 'Available',
-    lastUpdated: '4 days ago'
+const mapStatus = (backendStatus: string): StockStatus => {
+  switch (backendStatus) {
+    case 'AVAILABLE': return 'Available';
+    case 'LOW_STOCK': return 'Low Stock';
+    case 'CRITICAL': return 'Critical';
+    case 'OUT_OF_STOCK': return 'Out of Stock';
+    default: return 'Available';
   }
-];
+};
 
-// Helper to calculate status based on current stock vs min stock level
-export const calculateStatus = (current: number, min: number): StockStatus => {
-  if (current === 0) return 'Out of Stock';
-  if (current < min * 0.2) return 'Critical';
-  if (current < min) return 'Low Stock';
-  return 'Available';
+const formatLastUpdated = (dateString: string): string => {
+  if (!dateString) return 'Never';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  } catch (e) {
+    return dateString;
+  }
 };
 
 export const stockService = {
   /**
-   * Returns copy of mock stock items with delay.
+   * Fetches the current user's pharmacy stocks from the backend.
    */
   async getStock(): Promise<StockItem[]> {
-    await delay(500);
-    return [...initialStockList];
+    const response = await fetch(`${API_BASE_URL}/api/web/stock`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch stock items from server.');
+    }
+
+    const data = await response.json();
+    return data.map((dto: any) => ({
+      id: `STK-${dto.stockId}`,
+      stockId: dto.stockId,
+      medicineName: dto.brandName ? `${dto.brandName} (${dto.genericName})` : dto.genericName,
+      category: dto.category || 'General',
+      strength: dto.strength || 'N/A',
+      currentStock: dto.quantityAvailable,
+      minStockLevel: dto.minSafetyLevel,
+      status: mapStatus(dto.status),
+      lastUpdated: formatLastUpdated(dto.updatedAt),
+      unitPrice: dto.unitPrice,
+      medicineId: dto.medicineId,
+      safetyPercentage: dto.safetyPercentage,
+      genericName: dto.genericName,
+      brandName: dto.brandName
+    }));
   },
 
   /**
-   * Helper to retrieve stock summary metrics.
+   * Adds a new stock item to the pharmacy inventory.
+   */
+  async addStock(medicineId: number, quantity: number, minLevel: number, price: number): Promise<StockItem> {
+    const response = await fetch(`${API_BASE_URL}/api/web/stock?medicineId=${medicineId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        quantityAvailable: quantity,
+        unitPrice: price,
+        minSafetyLevel: minLevel
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to add stock record.');
+    }
+
+    const dto = await response.json();
+    return {
+      id: `STK-${dto.stockId}`,
+      stockId: dto.stockId,
+      medicineName: dto.brandName ? `${dto.brandName} (${dto.genericName})` : dto.genericName,
+      category: dto.category || 'General',
+      strength: dto.strength || 'N/A',
+      currentStock: dto.quantityAvailable,
+      minStockLevel: dto.minSafetyLevel,
+      status: mapStatus(dto.status),
+      lastUpdated: formatLastUpdated(dto.updatedAt),
+      unitPrice: dto.unitPrice,
+      medicineId: dto.medicineId,
+      safetyPercentage: dto.safetyPercentage,
+      genericName: dto.genericName,
+      brandName: dto.brandName
+    };
+  },
+
+  /**
+   * Updates an existing stock item in the pharmacy inventory.
+   */
+  async updateStock(stockId: number, quantity: number, minLevel: number, price: number): Promise<StockItem> {
+    const response = await fetch(`${API_BASE_URL}/api/web/stock/${stockId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        quantityAvailable: quantity,
+        unitPrice: price,
+        minSafetyLevel: minLevel
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update stock record.');
+    }
+
+    const dto = await response.json();
+    return {
+      id: `STK-${dto.stockId}`,
+      stockId: dto.stockId,
+      medicineName: dto.brandName ? `${dto.brandName} (${dto.genericName})` : dto.genericName,
+      category: dto.category || 'General',
+      strength: dto.strength || 'N/A',
+      currentStock: dto.quantityAvailable,
+      minStockLevel: dto.minSafetyLevel,
+      status: mapStatus(dto.status),
+      lastUpdated: formatLastUpdated(dto.updatedAt),
+      unitPrice: dto.unitPrice,
+      medicineId: dto.medicineId,
+      safetyPercentage: dto.safetyPercentage,
+      genericName: dto.genericName,
+      brandName: dto.brandName
+    };
+  },
+
+  /**
+   * Deletes a stock item from the pharmacy inventory.
+   */
+  async deleteStock(stockId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/web/stock/${stockId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete stock record.');
+    }
+  },
+
+  /**
+   * Helper to retrieve stock summary metrics from item list.
    */
   calculateSummary(items: StockItem[]): StockSummary {
     const totalMedicines = items.length;
@@ -211,4 +166,5 @@ export const stockService = {
     };
   }
 };
+
 export default stockService;
