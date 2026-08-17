@@ -678,7 +678,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
                   spacing: 6,
                   runSpacing: 4,
                   children: stockItems.take(3).map((item) {
-                    final String medName = item['medicineName'] ?? 'Medication';
+                    final String medName = (item['genericName'] ?? item['medicineName'] ?? 'Medication').toString();
                     final String avail = item['availability'] ?? 'IN_STOCK';
                     final bool inStock = avail == 'IN_STOCK';
                     final bool lowStock = avail == 'LOW_STOCK';
@@ -850,13 +850,13 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
     if (prescribedMeds.isEmpty) {
       prescribedMeds.addAll([
         {
-          'name': 'Amoxicillin 500mg (Himox)',
+          'name': 'Amoxicillin 500mg',
           'strength': '500mg',
           'instruction': '1 Capsule • 3 times daily (7 Days)',
           'slot': 'MORNING',
         },
         {
-          'name': 'Paracetamol 500mg (Panadol)',
+          'name': 'Paracetamol 500mg',
           'strength': '500mg',
           'instruction': '2 Tablets • When needed for pain',
           'slot': 'AFTERNOON',

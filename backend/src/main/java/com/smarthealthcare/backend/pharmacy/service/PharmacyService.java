@@ -157,7 +157,11 @@ public class PharmacyService {
                 PharmacyStock stock = stocks.get(0);
                 int qty = stock.getQuantityAvailable();
                 item.setQuantityAvailable(qty);
-                item.setGenericName(stock.getMedicine().getGenericName());
+                String generic = stock.getMedicine() != null && stock.getMedicine().getGenericName() != null
+                        ? stock.getMedicine().getGenericName()
+                        : rawName;
+                item.setGenericName(generic);
+                item.setMedicineName(generic);
                 item.setUnitPrice(stock.getUnitPrice());
 
                 if (qty <= 0) {
