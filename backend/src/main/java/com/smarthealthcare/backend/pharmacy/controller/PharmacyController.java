@@ -19,19 +19,36 @@ public class PharmacyController {
 
     private final PharmacyService pharmacyService;
     private final UserRepository userRepository;
+    private final com.smarthealthcare.backend.prescription.repository.PrescriptionRepository prescriptionRepository;
 
-    public PharmacyController(PharmacyService pharmacyService, UserRepository userRepository) {
+    public PharmacyController(
+            PharmacyService pharmacyService,
+            UserRepository userRepository,
+            com.smarthealthcare.backend.prescription.repository.PrescriptionRepository prescriptionRepository) {
         this.pharmacyService = pharmacyService;
         this.userRepository = userRepository;
+        this.prescriptionRepository = prescriptionRepository;
     }
 
     @GetMapping("/search-stock")
     public ResponseEntity<List<PharmacySearchResponse>> searchNearbyPharmacies(
+            Authentication authentication,
             @RequestParam(defaultValue = "6.9271") double lat,
             @RequestParam(defaultValue = "79.8612") double lng,
             @RequestParam(required = false) Long prescriptionId) {
 
-        List<PharmacySearchResponse> pharmacies = pharmacyService.searchNearbyPharmacies(lat, lng, prescriptionId);
+        Long effectiveRxId = prescriptionId;
+        if (effectiveRxId == null && authentication != null && authentication.isAuthenticated()) {
+            try {
+                User user = getUserFromAuth(authentication);
+                var rxs = prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(user.getUserId());
+                if (!rxs.isEmpty()) {
+                    effectiveRxId = rxs.get(0).getPrescriptionId();
+                }
+            } catch (Exception ignored) {}
+        }
+
+        List<PharmacySearchResponse> pharmacies = pharmacyService.searchNearbyPharmacies(lat, lng, effectiveRxId);
         return ResponseEntity.ok(pharmacies);
     }
 

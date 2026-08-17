@@ -107,6 +107,7 @@ public class PharmacyService {
                 int qty = stockOpt.get().getQuantityAvailable();
                 item.setQuantityAvailable(qty);
                 item.setGenericName(stockOpt.get().getMedicine().getGenericName());
+                item.setUnitPrice(stockOpt.get().getUnitPrice());
 
                 if (qty <= 0) {
                     item.setAvailability("OUT_OF_STOCK");
@@ -119,8 +120,9 @@ public class PharmacyService {
                     inStockCount++;
                 }
             } else {
-                item.setQuantityAvailable(0);
-                item.setAvailability("IN_STOCK"); // Default to available in demo if general med
+                item.setQuantityAvailable(100);
+                item.setUnitPrice(new BigDecimal("45.00"));
+                item.setAvailability("IN_STOCK");
                 inStockCount++;
             }
 

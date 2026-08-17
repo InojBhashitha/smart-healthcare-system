@@ -36,6 +36,7 @@ public class PharmacySearchResponse {
         private String medicineName;
         private String genericName;
         private int quantityAvailable;
+        private java.math.BigDecimal unitPrice;
         private String availability; // IN_STOCK, LOW_STOCK, OUT_OF_STOCK
     }
 }
