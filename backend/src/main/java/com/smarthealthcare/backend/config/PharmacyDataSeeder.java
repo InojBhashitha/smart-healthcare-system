@@ -45,16 +45,23 @@ public class PharmacyDataSeeder {
     public void seedPharmacyData() {
         log.info("Checking and seeding realistic Colombo, Sri Lanka partner pharmacies...");
 
-        // 1. Seed or Update the 7 Major Colombo Pharmacies
-        Pharmacy p1 = upsertPharmacy("HealthGuard Pharmacy", "Ward Place, Colombo 07", 6.9085, 79.8672, "+94 11 268 7788", "24 Hours", true);
-        Pharmacy p2 = upsertPharmacy("Union Chemists", "460 Galle Road, Colombo 03", 6.9147, 79.8540, "+94 11 234 5678", "8:00 AM - 10:00 PM", true);
-        Pharmacy p3 = upsertPharmacy("State Pharmaceuticals (Rajya Osusala)", "56 Station Road, Bambalapitiya, Colombo 04", 6.8920, 79.8570, "+94 11 456 7890", "24 Hours", false);
-        Pharmacy p4 = upsertPharmacy("Harcourts Pharmacy", "120 Havelock Road, Colombo 05", 6.8835, 79.8680, "+94 11 259 8811", "8:00 AM - 11:00 PM", true);
-        Pharmacy p5 = upsertPharmacy("Lanka Organics Chemists", "88 Union Place, Colombo 02", 6.9230, 79.8510, "+94 11 987 6543", "8:30 AM - 9:30 PM", true);
-        Pharmacy p6 = upsertPharmacy("Medicare Central Pharmacy", "182 High Level Road, Nugegoda", 6.8712, 79.8860, "+94 11 333 4444", "8:00 AM - 11:00 PM", true);
-        Pharmacy p7 = upsertPharmacy("City Health Pharmacy", "10 Station Road, Dehiwala", 6.8510, 79.8640, "+94 11 555 1234", "24 Hours", true);
+        // 1. Seed or Update the 3 Main Colombo Pharmacies with Web Dashboards
+        Pharmacy p1 = upsertPharmacy("HealthGuard Pharmacy", "Ward Place, Colombo 07", 6.9147, 79.8672, "+94 11 268 7788", "24 Hours", true);
+        Pharmacy p2 = upsertPharmacy("Union Chemists", "460 Galle Road, Kollupitiya, Colombo 03", 6.9030, 79.8540, "+94 11 234 5678", "8:00 AM - 10:00 PM", true);
+        Pharmacy p3 = upsertPharmacy("State Pharmaceuticals (Rajya Osusala)", "56 Station Road, Bambalapitiya, Colombo 04", 6.8920, 79.8570, "+94 11 456 7890", "24 Hours", true);
 
-        List<Pharmacy> allPharmacies = List.of(p1, p2, p3, p4, p5, p6, p7);
+        List<Pharmacy> allPharmacies = List.of(p1, p2, p3);
+
+        // De-verify or remove any other pharmacies to ensure only the 3 main dashboard pharmacies appear
+        List<Pharmacy> existingPharmacies = pharmacyRepository.findAll();
+        for (Pharmacy p : existingPharmacies) {
+            if (!p.getName().equalsIgnoreCase(p1.getName()) &&
+                !p.getName().equalsIgnoreCase(p2.getName()) &&
+                !p.getName().equalsIgnoreCase(p3.getName())) {
+                p.setIsVerified(false);
+                pharmacyRepository.save(p);
+            }
+        }
         List<Medicine> medicines = medicineRepository.findAll();
 
         if (medicines.isEmpty()) {

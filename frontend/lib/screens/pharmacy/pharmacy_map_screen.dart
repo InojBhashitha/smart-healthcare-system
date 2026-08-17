@@ -22,15 +22,15 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
   late Animation<double> _pulseAnimation;
   final TextEditingController _searchController = TextEditingController();
 
-  // Colombo Bounding Box Constants
-  static const double minLat = 6.8400; // Dehiwala South
+  // Colombo Bounding Box Constants (Targeting Central Colombo 02, 03, 04, 07)
+  static const double minLat = 6.8750; // Bambalapitiya / Havelock South
   static const double maxLat = 6.9450; // Colombo Fort North
-  static const double minLng = 79.8400; // West Coastline
-  static const double maxLng = 79.8950; // East Inland / Nugegoda
+  static const double minLng = 79.8400; // West Coastline (Galle Face)
+  static const double maxLng = 79.8850; // East Inland (Ward Place / Cinnamon Gardens)
 
-  // User Default Location: Colombo 07 (Town Hall / Cinnamon Gardens)
-  static const double userLat = 6.9271;
-  static const double userLng = 79.8612;
+  // User Default Location: Colombo 07 (Town Hall)
+  static const double userLat = 6.9147;
+  static const double userLng = 79.8672;
 
   @override
   void initState() {
@@ -97,12 +97,12 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               _buildColomboMapCard(context, provider, pharmacies, selectedId),
               const SizedBox(height: AppSpacing.lg),
 
-              // 5. Section Title: Partner Pharmacies List
+              // 5. Section Title: Main Partner Pharmacies List
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "PARTNER PHARMACIES (${pharmacies.length})",
+                    "VERIFIED PHARMACIES (${pharmacies.length})",
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -111,7 +111,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
                     ),
                   ),
                   Text(
-                    "Live Colombo Radar",
+                    "Connected to Live Dashboard",
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.cyan.shade400,
@@ -188,7 +188,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen>
               ),
               const SizedBox(height: 2),
               Text(
-                "Live stock synced • Colombo Metro",
+                "3 Main Partner Branches • Live Stock",
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
               ),
             ],
@@ -1238,8 +1238,8 @@ class _ColomboMapPainter extends CustomPainter {
 
     final coastPath = Path()
       ..moveTo(w * 0.12, 0)
-      ..cubicTo(w * 0.15, h * 0.20, w * 0.10, h * 0.40, w * 0.14, h * 0.65)
-      ..cubicTo(w * 0.16, h * 0.80, w * 0.18, h * 0.95, w * 0.20, h);
+      ..cubicTo(w * 0.16, h * 0.20, w * 0.12, h * 0.45, w * 0.15, h * 0.70)
+      ..cubicTo(w * 0.17, h * 0.85, w * 0.18, h * 0.95, w * 0.20, h);
     canvas.drawPath(coastPath, coastPaint);
 
     // 3. Draw Metro Road Grid Lines
@@ -1259,36 +1259,33 @@ class _ColomboMapPainter extends CustomPainter {
       ..lineTo(w * 0.26, h);
     canvas.drawPath(galleRoad, majorRoadPaint);
 
-    // High Level Road (A4) southeast
-    final highLevelRoad = Path()
-      ..moveTo(w * 0.45, h * 0.35)
-      ..lineTo(w * 0.85, h * 0.95);
-    canvas.drawPath(highLevelRoad, majorRoadPaint);
+    // R.A. De Mel Mawatha (Duplication Road)
+    final duplicationRoad = Path()
+      ..moveTo(w * 0.35, 0)
+      ..lineTo(w * 0.38, h);
+    canvas.drawPath(duplicationRoad, roadPaint);
 
-    // Baseline Road (A1) vertical east
-    final baselineRoad = Path()
-      ..moveTo(w * 0.65, 0)
-      ..lineTo(w * 0.70, h);
-    canvas.drawPath(baselineRoad, roadPaint);
+    // Ward Place / High Level
+    final wardPlace = Path()
+      ..moveTo(w * 0.45, h * 0.25)
+      ..lineTo(w * 0.85, h * 0.85);
+    canvas.drawPath(wardPlace, majorRoadPaint);
 
-    // Cross connecting roads
-    for (double i = 0.15; i < 0.95; i += 0.18) {
+    // Cross connecting roads (Dickmans Rd, Bullers Rd, Dharmapala Mawatha)
+    for (double i = 0.20; i < 0.90; i += 0.22) {
       canvas.drawLine(
         Offset(w * 0.15, h * i),
-        Offset(w * 0.90, h * i + 15),
+        Offset(w * 0.90, h * i + 10),
         roadPaint,
       );
     }
 
     // 4. Draw Colombo District Landmark Labels
     _drawLandmark(canvas, Offset(w * 0.28, h * 0.10), "Colombo Fort", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.22, h * 0.26), "Galle Face", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.48, h * 0.36), "Colombo 07", const Color(0xFF38BDF8));
-    _drawLandmark(canvas, Offset(w * 0.28, h * 0.46), "Colombo 03", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.30, h * 0.62), "Colombo 04", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.52, h * 0.68), "Colombo 05", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.75, h * 0.78), "Nugegoda", const Color(0xFF64748B));
-    _drawLandmark(canvas, Offset(w * 0.32, h * 0.88), "Dehiwala", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.22, h * 0.24), "Galle Face", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.52, h * 0.32), "Colombo 07 (Ward Pl)", const Color(0xFF38BDF8));
+    _drawLandmark(canvas, Offset(w * 0.28, h * 0.50), "Colombo 03 (Kollupitiya)", const Color(0xFF64748B));
+    _drawLandmark(canvas, Offset(w * 0.30, h * 0.78), "Colombo 04 (Bambalapitiya)", const Color(0xFF64748B));
 
     // 5. Draw User Location Radar Beacon
     final userX = ((userLng - minLng) / (maxLng - minLng)) * w;
