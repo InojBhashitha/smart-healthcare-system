@@ -103,7 +103,11 @@ public class PharmacyDataSeeder {
         seedPharmacistUser("healthguard@pharmacy.lk", "password123", "HealthGuard Manager", p1.getPharmacyId());
         seedPharmacistUser("osusala@pharmacy.lk", "password123", "Rajya Osusala Pharmacist", p3.getPharmacyId());
 
-        log.info("Successfully seeded all 7 Colombo partner pharmacies and stock!");
+        // 4. Seed Patient user accounts for Flutter Mobile App Login
+        seedPatientUser("john@example.com", "password123", "John Doe");
+        seedPatientUser("test@example.com", "password123", "Test Patient");
+
+        log.info("Successfully seeded all 7 Colombo partner pharmacies, stock, and demo accounts!");
     }
 
     private Pharmacy upsertPharmacy(String name, String address, double lat, double lng, String phone, String hours, boolean delivery) {
@@ -154,6 +158,20 @@ public class PharmacyDataSeeder {
             user.setPharmacyId(pharmacyId);
             userRepository.save(user);
             log.info("Created pharmacist web account: {} (Pharmacy ID: {})", email, pharmacyId);
+        }
+    }
+
+    private void seedPatientUser(String email, String rawPassword, String name) {
+        Optional<User> existing = userRepository.findByEmail(email);
+        if (existing.isEmpty()) {
+            User user = new User();
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            user.setName(name);
+            user.setRole("PATIENT");
+            user.setEnabled(true);
+            userRepository.save(user);
+            log.info("Created patient demo account: {}", email);
         }
     }
 }
