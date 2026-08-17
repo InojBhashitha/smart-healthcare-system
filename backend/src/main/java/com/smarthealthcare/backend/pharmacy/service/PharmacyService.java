@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -120,10 +121,10 @@ public class PharmacyService {
                     inStockCount++;
                 }
             } else {
-                item.setQuantityAvailable(100);
-                item.setUnitPrice(new BigDecimal("45.00"));
-                item.setAvailability("IN_STOCK");
-                inStockCount++;
+                item.setQuantityAvailable(0);
+                item.setUnitPrice(BigDecimal.ZERO);
+                item.setAvailability("OUT_OF_STOCK");
+                outOfStockCount++;
             }
 
             response.getStockItems().add(item);
