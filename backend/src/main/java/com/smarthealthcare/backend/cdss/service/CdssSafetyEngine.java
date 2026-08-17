@@ -170,11 +170,11 @@ public class CdssSafetyEngine {
             return rxMed.getMedicine().getGenericName();
         }
         // Fallback: DB lookup by brand or generic name
-        Optional<Medicine> medOpt = medicineRepository.findByBrandNameIgnoreCase(rxMed.getMedicineName());
-        if (medOpt.isEmpty()) {
-            medOpt = medicineRepository.findByGenericNameIgnoreCase(rxMed.getMedicineName());
+        List<Medicine> meds = medicineRepository.findByBrandNameIgnoreCase(rxMed.getMedicineName());
+        if (meds.isEmpty()) {
+            meds = medicineRepository.findByGenericNameIgnoreCase(rxMed.getMedicineName());
         }
-        return medOpt.map(Medicine::getGenericName).orElse(rxMed.getMedicineName());
+        return !meds.isEmpty() && meds.get(0).getGenericName() != null ? meds.get(0).getGenericName() : rxMed.getMedicineName();
     }
 
     private String getGenericOrBrandName(PrescriptionMedicine rxMed) {

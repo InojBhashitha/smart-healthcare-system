@@ -1,6 +1,7 @@
 package com.smarthealthcare.backend.pharmacy.service;
 
 import com.smarthealthcare.backend.exception.ResourceNotFoundException;
+import com.smarthealthcare.backend.medicine.entity.Medicine;
 import com.smarthealthcare.backend.pharmacy.dto.PharmacySearchResponse;
 import com.smarthealthcare.backend.pharmacy.dto.ReservationRequest;
 import com.smarthealthcare.backend.pharmacy.entity.Pharmacy;
@@ -78,7 +79,8 @@ public class PharmacyService {
             } else if (userId != null) {
                 var rxs = prescriptionRepository.findByUserUserIdOrderByUploadedAtDesc(userId);
                 if (!rxs.isEmpty()) {
-                    rx = prescriptionRepository.findWithMedicinesByPrescriptionId(rxs.get(0).getPrescriptionId()).orElse(null);
+                    rx = prescriptionRepository.findWithMedicinesByPrescriptionId(rxs.get(0).getPrescriptionId())
+                            .orElse(null);
                 }
             }
 
@@ -97,7 +99,8 @@ public class PharmacyService {
         List<PharmacySearchResponse> result = new ArrayList<>();
 
         for (Pharmacy p : pharmacies) {
-            double distance = distanceCalculator.calculateDistanceKm(userLat, userLng, p.getLatitude(), p.getLongitude());
+            double distance = distanceCalculator.calculateDistanceKm(userLat, userLng, p.getLatitude(),
+                    p.getLongitude());
 
             PharmacySearchResponse response = new PharmacySearchResponse();
             response.setPharmacyId(p.getPharmacyId());
@@ -122,7 +125,8 @@ public class PharmacyService {
                     item.setGenericName(ps.getMedicine().getGenericName());
                     item.setQuantityAvailable(ps.getQuantityAvailable());
                     item.setUnitPrice(ps.getUnitPrice());
-                    item.setAvailability(ps.getQuantityAvailable() > 20 ? "IN_STOCK" : (ps.getQuantityAvailable() > 0 ? "LOW_STOCK" : "OUT_OF_STOCK"));
+                    item.setAvailability(ps.getQuantityAvailable() > 20 ? "IN_STOCK"
+                            : (ps.getQuantityAvailable() > 0 ? "LOW_STOCK" : "OUT_OF_STOCK"));
                     response.getStockItems().add(item);
                 }
                 response.setStockStatus("IN_STOCK");
@@ -158,17 +162,22 @@ public class PharmacyService {
 
             if (stocks.isEmpty()) {
                 // Auto-provision verified partner pharmacy stock for any newly scanned prescription medicine
-                Optional<Medicine> medOpt = medicineRepository.findByBrandNameIgnoreCase(cleanName)
-                        .or(() -> medicineRepository.findByGenericNameIgnoreCase(cleanName));
+                List<Medicine> medMatches = medicineRepository.findByBrandNameIgnoreCase(cleanName);
+                if (medMatches.isEmpty()) {
+                    medMatches = medicineRepository.findByGenericNameIgnoreCase(cleanName);
+                }
 
-                Medicine med = medOpt.orElseGet(() -> {
+                Medicine med;
+                if (!medMatches.isEmpty()) {
+                    med = medMatches.get(0);
+                } else {
                     Medicine newMed = new Medicine();
                     newMed.setMedicineId(100 + (int) medicineRepository.count() + 1);
                     newMed.setBrandName(rawName);
                     newMed.setGenericName(rawName);
                     newMed.setCategory("Prescription");
-                    return medicineRepository.save(newMed);
-                });
+                    med = medicineRepository.save(newMed);
+                }
 
                 Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId).orElse(null);
                 if (pharmacy != null) {
@@ -229,7 +238,8 @@ public class PharmacyService {
     @Transactional
     public PrescriptionReservation createReservation(User user, ReservationRequest request) {
         Prescription rx = prescriptionRepository.findById(request.getPrescriptionId())
-                .orElseThrow(() -> new ResourceNotFoundException("Prescription not found: " + request.getPrescriptionId()));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Prescription not found: " + request.getPrescriptionId()));
 
         Pharmacy pharmacy = pharmacyRepository.findById(request.getPharmacyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pharmacy not found: " + request.getPharmacyId()));

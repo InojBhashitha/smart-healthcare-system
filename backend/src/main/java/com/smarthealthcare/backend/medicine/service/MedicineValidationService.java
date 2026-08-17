@@ -20,12 +20,12 @@ public class MedicineValidationService {
 
     public MedicineValidationResponse validate(String medicineName) {
 
-        Optional<Medicine> generic =
+        java.util.List<Medicine> generic =
                 repository.findByGenericNameIgnoreCase(medicineName);
 
-        if (generic.isPresent()) {
+        if (!generic.isEmpty()) {
 
-            Medicine medicine = generic.get();
+            Medicine medicine = generic.get(0);
 
             return new MedicineValidationResponse(
                     true,
@@ -36,14 +36,12 @@ public class MedicineValidationService {
             );
         }
 
-   
-
-        Optional<Medicine> brand =
+        java.util.List<Medicine> brand =
                 repository.findByBrandNameIgnoreCase(medicineName);
 
-        if (brand.isPresent()) {
+        if (!brand.isEmpty()) {
 
-            Medicine medicine = brand.get();
+            Medicine medicine = brand.get(0);
 
             return new MedicineValidationResponse(
                     true,
@@ -62,10 +60,18 @@ public class MedicineValidationService {
                 null
         );
     }
-     public Medicine findMatchingMedicine(String medicineName) {
-
-    return repository.findByGenericNameIgnoreCase(medicineName)
-            .or(() -> repository.findByBrandNameIgnoreCase(medicineName))
-            .orElse(null);
+    public Medicine findMatchingMedicine(String medicineName) {
+        if (medicineName == null || medicineName.isBlank()) {
+            return null;
+        }
+        java.util.List<Medicine> generics = repository.findByGenericNameIgnoreCase(medicineName.trim());
+        if (!generics.isEmpty()) {
+            return generics.get(0);
+        }
+        java.util.List<Medicine> brands = repository.findByBrandNameIgnoreCase(medicineName.trim());
+        if (!brands.isEmpty()) {
+            return brands.get(0);
+        }
+        return null;
     }
 }
