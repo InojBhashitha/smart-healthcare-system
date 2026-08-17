@@ -242,12 +242,15 @@ class _VerificationScreenState extends State<VerificationScreen> {
   ) {
     final dbMed = med.databaseMedicine;
     final hasMatch = dbMed != null && (dbMed.genericName.isNotEmpty || dbMed.brandName.isNotEmpty);
-    // Display the real prescribed medicine name (e.g. "Himox"), fallback to db brand/generic
-    final displayName = med.medicineName.isNotEmpty
-        ? med.medicineName
-        : (hasMatch ? (dbMed.brandName.isNotEmpty ? dbMed.brandName : dbMed.genericName) : "Medication");
-    final genericSub = hasMatch && dbMed.genericName.isNotEmpty
-        ? "Generic: ${dbMed.genericName}"
+    // Display the actual generic medicine name as primary title (e.g. "Amoxicillin")
+    final displayName = dbMed != null && dbMed.genericName.isNotEmpty
+        ? dbMed.genericName
+        : (med.medicineName.isNotEmpty ? med.medicineName : "Medication");
+    // Show prescribed brand (e.g. "Himox") if different from the generic medicine name
+    final brandSub = med.medicineName.isNotEmpty &&
+            !med.medicineName.toLowerCase().contains(displayName.toLowerCase()) &&
+            !displayName.toLowerCase().contains(med.medicineName.toLowerCase())
+        ? "Prescribed Brand: ${med.medicineName}"
         : null;
 
     // Calculate match confidence display percentage
@@ -350,18 +353,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
                         ),
                       ],
                     ),
-                    if (genericSub != null) ...[
+                    if (brandSub != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        genericSub,
-                        style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                    if (med.medicineName != displayName) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        "OCR Raw Text: \"${med.medicineName}\"",
-                        style: const TextStyle(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
+                        brandSub,
+                        style: TextStyle(color: Colors.cyan.shade300, fontSize: 12, fontWeight: FontWeight.w500),
                       ),
                     ],
                     const SizedBox(height: 6),
