@@ -37,6 +37,12 @@ public class Pharmacy {
     @Column(name = "operating_hours")
     private String operatingHours;
 
+    @Column(name = "delivery_available")
+    private Boolean deliveryAvailable = false;
+
+    @Column(name = "contact_number")
+    private String contactNumber;
+
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified = true;
 }

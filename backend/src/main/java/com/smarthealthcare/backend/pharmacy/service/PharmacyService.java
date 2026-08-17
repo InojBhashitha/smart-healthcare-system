@@ -67,6 +67,7 @@ public class PharmacyService {
             response.setLongitude(p.getLongitude());
             response.setPhone(p.getPhone());
             response.setOperatingHours(p.getOperatingHours());
+            response.setDeliveryAvailable(p.getDeliveryAvailable() != null ? p.getDeliveryAvailable() : false);
             response.setIsVerified(p.getIsVerified());
             response.setDistanceKm(distance);
 

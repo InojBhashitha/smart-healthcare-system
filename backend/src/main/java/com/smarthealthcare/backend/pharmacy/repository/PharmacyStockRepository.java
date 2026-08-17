@@ -14,6 +14,8 @@ public interface PharmacyStockRepository extends JpaRepository<PharmacyStock, Lo
 
     List<PharmacyStock> findByPharmacyPharmacyId(Long pharmacyId);
 
+    Optional<PharmacyStock> findByPharmacyPharmacyIdAndMedicineMedicineId(Long pharmacyId, Integer medicineId);
+
     @Query("SELECT ps FROM PharmacyStock ps WHERE ps.pharmacy.pharmacyId = :pharmacyId AND (LOWER(ps.medicine.brandName) = LOWER(:medName) OR LOWER(ps.medicine.genericName) = LOWER(:medName))")
     Optional<PharmacyStock> findStockByPharmacyAndMedicineName(
             @Param("pharmacyId") Long pharmacyId,

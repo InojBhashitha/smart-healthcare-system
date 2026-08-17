@@ -6,12 +6,16 @@ import com.smarthealthcare.backend.pharmacy.entity.Pharmacy;
 import com.smarthealthcare.backend.pharmacy.entity.PharmacyStock;
 import com.smarthealthcare.backend.pharmacy.repository.PharmacyRepository;
 import com.smarthealthcare.backend.pharmacy.repository.PharmacyStockRepository;
+import com.smarthealthcare.backend.user.entity.User;
+import com.smarthealthcare.backend.user.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -20,61 +24,103 @@ public class PharmacyDataSeeder {
     private final PharmacyRepository pharmacyRepository;
     private final PharmacyStockRepository stockRepository;
     private final MedicineRepository medicineRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public PharmacyDataSeeder(
             PharmacyRepository pharmacyRepository,
             PharmacyStockRepository stockRepository,
-            MedicineRepository medicineRepository) {
+            MedicineRepository medicineRepository,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder) {
 
         this.pharmacyRepository = pharmacyRepository;
         this.stockRepository = stockRepository;
         this.medicineRepository = medicineRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostConstruct
     public void seedPharmacyData() {
-        if (pharmacyRepository.count() > 0) {
-            log.info("Partner pharmacies already seeded in PostgreSQL.");
+        log.info("Checking and seeding realistic Colombo, Sri Lanka partner pharmacies...");
+
+        // 1. Seed or Update the 7 Major Colombo Pharmacies
+        Pharmacy p1 = upsertPharmacy("HealthGuard Pharmacy", "Ward Place, Colombo 07", 6.9085, 79.8672, "+94 11 268 7788", "24 Hours", true);
+        Pharmacy p2 = upsertPharmacy("Union Chemists", "460 Galle Road, Colombo 03", 6.9147, 79.8540, "+94 11 234 5678", "8:00 AM - 10:00 PM", true);
+        Pharmacy p3 = upsertPharmacy("State Pharmaceuticals (Rajya Osusala)", "56 Station Road, Bambalapitiya, Colombo 04", 6.8920, 79.8570, "+94 11 456 7890", "24 Hours", false);
+        Pharmacy p4 = upsertPharmacy("Harcourts Pharmacy", "120 Havelock Road, Colombo 05", 6.8835, 79.8680, "+94 11 259 8811", "8:00 AM - 11:00 PM", true);
+        Pharmacy p5 = upsertPharmacy("Lanka Organics Chemists", "88 Union Place, Colombo 02", 6.9230, 79.8510, "+94 11 987 6543", "8:30 AM - 9:30 PM", true);
+        Pharmacy p6 = upsertPharmacy("Medicare Central Pharmacy", "182 High Level Road, Nugegoda", 6.8712, 79.8860, "+94 11 333 4444", "8:00 AM - 11:00 PM", true);
+        Pharmacy p7 = upsertPharmacy("City Health Pharmacy", "10 Station Road, Dehiwala", 6.8510, 79.8640, "+94 11 555 1234", "24 Hours", true);
+
+        List<Pharmacy> allPharmacies = List.of(p1, p2, p3, p4, p5, p6, p7);
+        List<Medicine> medicines = medicineRepository.findAll();
+
+        if (medicines.isEmpty()) {
+            log.warn("No medicines found in database to seed stock for.");
             return;
         }
 
-        log.info("Seeding realistic demo partner pharmacies and inventory stock...");
+        // 2. Seed stock for each pharmacy if stock count is low
+        if (stockRepository.count() < (allPharmacies.size() * 5)) {
+            log.info("Seeding inventory stock for {} Colombo partner pharmacies...", allPharmacies.size());
+            for (Pharmacy pharmacy : allPharmacies) {
+                for (Medicine med : medicines) {
+                    if (stockRepository.findByPharmacyPharmacyIdAndMedicineMedicineId(pharmacy.getPharmacyId(), med.getMedicineId()).isEmpty()) {
+                        String name = (med.getGenericName() != null ? med.getGenericName() : "").toLowerCase();
+                        int qty = 150;
+                        BigDecimal price = new BigDecimal("45.00");
 
-        Pharmacy p1 = createPharmacy("Union Chemists", "24 Galle Road, Colombo 03", 6.9147, 79.8540, "+94 11 234 5678", "8:00 AM - 10:00 PM");
-        Pharmacy p2 = createPharmacy("City Health Pharmacy", "56 Station Road, Bambalapitiya", 6.8920, 79.8570, "+94 11 456 7890", "24 Hours");
-        Pharmacy p3 = createPharmacy("Lanka Organics Pharmacy", "182 High Level Road, Nugegoda", 6.8712, 79.8860, "+94 11 987 6543", "8:30 AM - 9:00 PM");
-        Pharmacy p4 = createPharmacy("Medicare Central Pharmacy", "10 Station Road, Dehiwala", 6.8510, 79.8640, "+94 11 333 4444", "8:00 AM - 11:00 PM");
+                        // Add realistic stock variety
+                        if (name.contains("amoxicillin")) {
+                            if (pharmacy.getName().contains("Union") || pharmacy.getName().contains("HealthGuard")) {
+                                qty = 300; // Full stock
+                                price = new BigDecimal("48.00");
+                            } else if (pharmacy.getName().contains("Osusala")) {
+                                qty = 12; // Low stock
+                                price = new BigDecimal("42.00");
+                            } else if (pharmacy.getName().contains("Harcourts")) {
+                                qty = 0; // Out of stock demo
+                                price = new BigDecimal("50.00");
+                            }
+                        } else if (name.contains("paracetamol") || name.contains("panadol")) {
+                            qty = 500;
+                            price = new BigDecimal("15.00");
+                        } else if (name.contains("azithromycin")) {
+                            qty = 80;
+                            price = new BigDecimal("120.00");
+                        }
 
-        List<Medicine> medicines = medicineRepository.findAll();
-
-        for (Medicine med : medicines) {
-            String name = med.getGenericName() != null ? med.getGenericName().toLowerCase() : "";
-
-            // Union Chemists: Full stock
-            createStock(p1, med, new BigDecimal("45.00"), 300);
-
-            // City Health: Out of stock demo for Amoxicillin
-            if (name.contains("amoxicillin")) {
-                createStock(p2, med, new BigDecimal("50.00"), 0); // Out of Stock
-            } else {
-                createStock(p2, med, new BigDecimal("48.00"), 250);
+                        createStock(pharmacy, med, price, qty);
+                    }
+                }
             }
-
-            // Lanka Organics: Low stock demo for Paracetamol
-            if (name.contains("paracetamol") || name.contains("panadol")) {
-                createStock(p3, med, new BigDecimal("42.00"), 8); // Low Stock
-            } else {
-                createStock(p3, med, new BigDecimal("44.00"), 180);
-            }
-
-            // Medicare Central: Full stock
-            createStock(p4, med, new BigDecimal("46.00"), 400);
         }
 
-        log.info("Successfully seeded 4 partner pharmacies with full inventory stock!");
+        // 3. Seed Pharmacist user accounts for Web Dashboard Login
+        seedPharmacistUser("union@pharmacy.lk", "password123", "Union Chemists Manager", p2.getPharmacyId());
+        seedPharmacistUser("healthguard@pharmacy.lk", "password123", "HealthGuard Manager", p1.getPharmacyId());
+        seedPharmacistUser("osusala@pharmacy.lk", "password123", "Rajya Osusala Pharmacist", p3.getPharmacyId());
+
+        log.info("Successfully seeded all 7 Colombo partner pharmacies and stock!");
     }
 
-    private Pharmacy createPharmacy(String name, String address, double lat, double lng, String phone, String hours) {
+    private Pharmacy upsertPharmacy(String name, String address, double lat, double lng, String phone, String hours, boolean delivery) {
+        List<Pharmacy> existing = pharmacyRepository.findAll();
+        for (Pharmacy p : existing) {
+            if (p.getName().equalsIgnoreCase(name)) {
+                p.setAddress(address);
+                p.setLatitude(lat);
+                p.setLongitude(lng);
+                p.setPhone(phone);
+                p.setOperatingHours(hours);
+                p.setDeliveryAvailable(delivery);
+                p.setIsVerified(true);
+                return pharmacyRepository.save(p);
+            }
+        }
+
         Pharmacy p = new Pharmacy();
         p.setName(name);
         p.setAddress(address);
@@ -82,6 +128,7 @@ public class PharmacyDataSeeder {
         p.setLongitude(lng);
         p.setPhone(phone);
         p.setOperatingHours(hours);
+        p.setDeliveryAvailable(delivery);
         p.setIsVerified(true);
         return pharmacyRepository.save(p);
     }
@@ -93,5 +140,20 @@ public class PharmacyDataSeeder {
         stock.setUnitPrice(price);
         stock.setQuantityAvailable(qty);
         stockRepository.save(stock);
+    }
+
+    private void seedPharmacistUser(String email, String rawPassword, String name, Long pharmacyId) {
+        Optional<User> existing = userRepository.findByEmail(email);
+        if (existing.isEmpty()) {
+            User user = new User();
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            user.setName(name);
+            user.setRole("PHARMACIST");
+            user.setEnabled(true);
+            user.setPharmacyId(pharmacyId);
+            userRepository.save(user);
+            log.info("Created pharmacist web account: {} (Pharmacy ID: {})", email, pharmacyId);
+        }
     }
 }

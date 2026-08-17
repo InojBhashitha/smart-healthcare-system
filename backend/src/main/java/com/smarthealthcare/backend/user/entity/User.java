@@ -28,4 +28,7 @@ public class User {
     @Column(name = "enabled")
     private Boolean enabled;
 
+    @Column(name = "pharmacy_id")
+    private Long pharmacyId;
+
 }

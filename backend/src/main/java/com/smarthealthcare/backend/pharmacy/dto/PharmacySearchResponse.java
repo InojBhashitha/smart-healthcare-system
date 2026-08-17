@@ -21,6 +21,7 @@ public class PharmacySearchResponse {
     private Double longitude;
     private String phone;
     private String operatingHours;
+    private Boolean deliveryAvailable;
     private Boolean isVerified;
     private Double distanceKm;
     private String stockStatus; // IN_STOCK, LOW_STOCK, OUT_OF_STOCK

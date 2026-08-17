@@ -67,6 +67,13 @@ public class DatabaseSchemaInitializer {
                 ALTER TABLE dose_logs DROP CONSTRAINT IF EXISTS fk_dose_schedules;
             """);
 
+            // Ensure pharmacy columns and user foreign keys exist for Web Dashboard integration
+            jdbcTemplate.execute("""
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS delivery_available BOOLEAN DEFAULT false;
+                ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20);
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS pharmacy_id BIGINT;
+            """);
+
             log.info("PostgreSQL schema integrity check complete!");
         } catch (Exception e) {
             log.error("Failed schema initialization: {}", e.getMessage());

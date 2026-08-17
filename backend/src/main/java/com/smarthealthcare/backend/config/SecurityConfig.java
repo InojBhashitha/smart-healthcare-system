@@ -74,7 +74,9 @@ public DaoAuthenticationProvider authenticationProvider() {
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register",
-                                "/api/ocr/**"
+                                "/api/ocr/**",
+                                "/api/pharmacies/search-stock",
+                                "/actuator/**"
                         )
                         .permitAll()
 
