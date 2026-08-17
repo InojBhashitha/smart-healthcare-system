@@ -16,8 +16,8 @@ public interface PharmacyStockRepository extends JpaRepository<PharmacyStock, Lo
 
     Optional<PharmacyStock> findByPharmacyPharmacyIdAndMedicineMedicineId(Long pharmacyId, Integer medicineId);
 
-    @Query("SELECT ps FROM PharmacyStock ps WHERE ps.pharmacy.pharmacyId = :pharmacyId AND (LOWER(ps.medicine.brandName) = LOWER(:medName) OR LOWER(ps.medicine.genericName) = LOWER(:medName))")
-    Optional<PharmacyStock> findStockByPharmacyAndMedicineName(
+    @Query("SELECT ps FROM PharmacyStock ps WHERE ps.pharmacy.pharmacyId = :pharmacyId AND (LOWER(ps.medicine.brandName) LIKE LOWER(CONCAT('%', :medName, '%')) OR LOWER(ps.medicine.genericName) LIKE LOWER(CONCAT('%', :medName, '%')))")
+    List<PharmacyStock> findStockByPharmacyAndMedicineName(
             @Param("pharmacyId") Long pharmacyId,
             @Param("medName") String medName);
 }

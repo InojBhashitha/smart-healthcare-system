@@ -98,17 +98,22 @@ public class PharmacyService {
         int outOfStockCount = 0;
 
         for (PrescriptionMedicine med : rxMeds) {
-            Optional<PharmacyStock> stockOpt = stockRepository
-                    .findStockByPharmacyAndMedicineName(pharmacyId, med.getMedicineName());
+            String medName = med.getMedicineName();
+            if (medName == null || medName.isBlank()) continue;
+            String cleanName = medName.split(" ")[0].trim();
+
+            List<PharmacyStock> stocks = stockRepository
+                    .findStockByPharmacyAndMedicineName(pharmacyId, cleanName);
 
             PharmacySearchResponse.MedicineStockItem item = new PharmacySearchResponse.MedicineStockItem();
             item.setMedicineName(med.getMedicineName());
 
-            if (stockOpt.isPresent()) {
-                int qty = stockOpt.get().getQuantityAvailable();
+            if (!stocks.isEmpty()) {
+                PharmacyStock stock = stocks.get(0);
+                int qty = stock.getQuantityAvailable();
                 item.setQuantityAvailable(qty);
-                item.setGenericName(stockOpt.get().getMedicine().getGenericName());
-                item.setUnitPrice(stockOpt.get().getUnitPrice());
+                item.setGenericName(stock.getMedicine().getGenericName());
+                item.setUnitPrice(stock.getUnitPrice());
 
                 if (qty <= 0) {
                     item.setAvailability("OUT_OF_STOCK");
