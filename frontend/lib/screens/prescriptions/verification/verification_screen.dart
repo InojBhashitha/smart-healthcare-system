@@ -242,8 +242,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
   ) {
     final dbMed = med.databaseMedicine;
     final hasMatch = dbMed != null && (dbMed.genericName.isNotEmpty || dbMed.brandName.isNotEmpty);
-    final displayName = hasMatch ? (dbMed.brandName.isNotEmpty ? dbMed.brandName : dbMed.genericName) : med.medicineName;
-    final genericSub = hasMatch && dbMed.genericName.isNotEmpty ? "Generic: ${dbMed.genericName}" : null;
+    // Display the real prescribed medicine name (e.g. "Himox"), fallback to db brand/generic
+    final displayName = med.medicineName.isNotEmpty
+        ? med.medicineName
+        : (hasMatch ? (dbMed.brandName.isNotEmpty ? dbMed.brandName : dbMed.genericName) : "Medication");
+    final genericSub = hasMatch && dbMed.genericName.isNotEmpty
+        ? "Generic: ${dbMed.genericName}"
+        : null;
 
     // Calculate match confidence display percentage
     final confidenceScore = med.confidence;
